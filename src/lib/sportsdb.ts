@@ -21,15 +21,29 @@ export type SportsDbEvent = {
   intRound: string;
 };
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// The free tier's key (`123`) is shared with every other free user, so
+// occasional 429s from someone else's traffic are expected — retry with
+// backoff rather than failing the whole weekly job over a transient limit.
 async function sportsDbGet(path: string, params: Record<string, string>): Promise<{ events: SportsDbEvent[] | null }> {
   const url = new URL(`${SPORTSDB_BASE}/${sportsDbKey()}/${path}`);
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
 
-  const res = await fetch(url);
-  if (!res.ok) {
+  const maxAttempts = 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const res = await fetch(url);
+    if (res.ok) return res.json();
+
+    if (res.status === 429 && attempt < maxAttempts) {
+      await sleep(2 ** attempt * 1000); // 2s, 4s, 8s
+      continue;
+    }
     throw new Error(`TheSportsDB request failed: ${res.status} ${res.statusText}`);
   }
-  return res.json();
+  throw new Error("unreachable");
 }
 
 // The single next unplayed fixture for a league, used only to read its
