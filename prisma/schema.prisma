@@ -15,7 +15,8 @@ model Player {
   name      String   @unique
   createdAt DateTime @default(now())
 
-  wonRuns        Run[]           @relation("RunWinner")
+  wonRuns        Run[]           @relation("RunWinners")
+  runEntries     RunEntry[]
   lmsPicks       LmsPick[]
   predictorPicks PredictorPick[]
   usedTeams      UsedTeam[]
@@ -30,15 +31,17 @@ model League {
 }
 
 model Run {
-  id             Int       @id @default(autoincrement())
-  runNumber      Int       @unique
-  startedAt      DateTime  @default(now())
-  endedAt        DateTime?
-  winnerPlayerId Int?
+  id        Int       @id @default(autoincrement())
+  runNumber Int       @unique
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
 
-  winner    Player?    @relation("RunWinner", fields: [winnerPlayerId], references: [id])
-  gameWeeks GameWeek[]
-  usedTeams UsedTeam[]
+  // Normally one player, but a shared final-week elimination (everyone still
+  // in the run loses their last life the same week) makes them joint winners.
+  winners    Player[]   @relation("RunWinners")
+  gameWeeks  GameWeek[]
+  usedTeams  UsedTeam[]
+  runEntries RunEntry[]
 }
 
 enum GameWeekStatus {
@@ -61,8 +64,28 @@ model GameWeek {
   fixtures          Fixture[]
   predictorFixtures PredictorFixture[]
   lmsPicks          LmsPick[]
+  eliminations      RunEntry[]
 
   @@unique([runId, weekNumber])
+}
+
+// One row per player per LMS run — tracks their lives for that run.
+// STARTING_LIVES (see src/lib/lms.ts) lives per run; each wrong or postponed
+// pick costs one life down to a floor of 0. A wrong/postponed pick while
+// already at 0 lives is what eliminates the player (see section 6 of the plan).
+model RunEntry {
+  id                 Int      @id @default(autoincrement())
+  runId              Int
+  playerId           Int
+  livesRemaining     Int      @default(4)
+  eliminated         Boolean  @default(false)
+  eliminatedAtWeekId Int?
+
+  run              Run       @relation(fields: [runId], references: [id])
+  player           Player    @relation(fields: [playerId], references: [id])
+  eliminatedAtWeek GameWeek? @relation(fields: [eliminatedAtWeekId], references: [id])
+
+  @@unique([runId, playerId])
 }
 
 enum FixtureResult {

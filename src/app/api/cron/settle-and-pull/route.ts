@@ -23,7 +23,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // TODO: settle previous game week (LMS eliminations, Predictor scoring)
+  // TODO: find the previous game week to settle, then call settleLmsGameWeek()
+  // from src/lib/lms.ts (lives/elimination logic already implemented there)
+  // TODO: settle Predictor scoring for the same week
   // TODO: pull next Fri-Thu fixture window across all four leagues
   // TODO: randomly select 5 fixtures for that week's Score Predictor
 

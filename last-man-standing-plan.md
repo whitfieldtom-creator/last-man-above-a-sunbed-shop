@@ -1,4 +1,4 @@
-# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v7 — build-ready)
+# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v8 — build-ready)
 
 Two games, one app, sharing the same weekly fixture pull:
 1. **Last Man Standing (LMS)** — pick one team to win each week; wrong/no pick eliminates you; last one standing wins, then it resets.
@@ -15,7 +15,7 @@ Two games, one app, sharing the same weekly fixture pull:
 ## 2. Postponed fixtures & thin weeks
 
 - **Postponed/delayed fixture, no score by settlement time**:
-  - LMS: if any one of the player's picks (one per league) has no result, they're eliminated (same as a wrong pick) — postponements aren't forgiven
+  - LMS: costs a life the same as a wrong pick (see section 6) — postponements aren't forgiven
   - Predictor: that fixture scores 0 points; doesn't affect their other 4 picks
 - **Thin weeks (international breaks, cup weeks) — the two games are handled differently**:
   - **LMS**: doesn't need all four leagues. Use whichever leagues have fixtures that window — e.g. if only League One and League Two are playing, the LMS pick screen just shows those two leagues. Only skip LMS for the week if *zero* leagues have any fixtures at all.
@@ -28,7 +28,7 @@ Two games, one app, sharing the same weekly fixture pull:
    - Skipped entirely for eliminated players — they go straight to screen 3
 3. **Score Predictor** — the same 5 randomly-selected fixtures for every player; enter a predicted score for each; clicking "Next" submits
 4. **Results / leaderboard** — two separate panels:
-   - LMS: current run status, who's alive, past run winners
+   - LMS: current run status, each surviving player's lives remaining, past run winners
    - Predictor: season-long points table (1 pt correct result, 3 pts exact score — assuming exact score scores 3 total, not 3 on top of the 1; flag if you meant otherwise)
 
 ## 4. Seed data
@@ -45,7 +45,11 @@ leagues
   id, name                                        -- Premier League, Championship, League One, League Two
 
 runs                                              -- Last Man Standing runs only
-  id, run_number, started_at, ended_at, winner_player_id (nullable)
+  id, run_number, started_at, ended_at
+  winners: many-to-many with players               -- usually one, joint on a shared final-week elimination (section 6)
+
+run_entries                                        -- one row per player per run, tracks lives
+  id, run_id, player_id, lives_remaining (starts at 4), eliminated, eliminated_at_week_id (nullable)
 
 game_weeks
   id, run_id, week_number, window_start (Fri), window_end (Thu),
@@ -71,8 +75,10 @@ used_teams                                        -- or derive from lms_picks wh
   player_id, run_id, team_name
 ```
 
-## 6. Last Man Standing — survival rule
-A player must get **every** one of that week's picks correct (one per active league) to survive. A single wrong or postponed pick eliminates them, same as under the old one-pick rule — the only change is there are now multiple picks to get right each week.
+## 6. Last Man Standing — survival rule (lives)
+Each player gets **4 lives per run**. Every wrong, postponed, or missing pick costs one life (a week with multiple league picks can cost multiple lives — one per miss, not capped at one per week). Lives floor at 0 rather than going negative; a player isn't eliminated for merely reaching 0 lives, only when they then miss again while already at 0 — i.e. their 5th miss ends their run. Screen 4 shows each surviving player's lives remaining.
+
+**Ties**: if every player still in the run is eliminated in the same week (all hit their 5th miss together), they're declared **joint winners** of that run rather than the run continuing with no survivors.
 
 ## 7. Scoring — Score Predictor
 - 1 point: correct result (home win / away win / draw) but wrong scoreline
