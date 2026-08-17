@@ -82,11 +82,23 @@ p {
 
 /* Layout chrome */
 .site-header {
+  background: #0e1613;
   padding: 1.75rem 1.5rem 0.5rem;
   text-align: center;
 }
+.site-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
 .site-title {
   margin: 0.1rem 0 0;
+}
+.header-icon {
+  width: 5.5rem;
+  height: auto;
+  flex-shrink: 0;
 }
 
 .site-content {
