@@ -33,7 +33,9 @@ Two games, one app, sharing the same weekly fixture pull:
 
 ## 4. Seed data
 Players (seeded directly into the DB, no admin UI needed for this):
-`Tom, Goods, Kev, Rich, Ed, Martin`
+`Tom, Goods, Kev, Rich, Ed, Gary`
+
+Each player has a passcode (plaintext distributed by whoever runs the pool, hashed at rest) entered after picking their name on screen 1 — a lightweight gate, not real authentication. See section 8.
 
 ## 5. Data model (draft v3)
 
@@ -86,8 +88,10 @@ Each player gets **4 lives per run**. Every wrong, postponed, or missing pick co
 - 0 points: postponed fixture with no result
 - Running total across all game weeks, no reset (separate from LMS run resets)
 
-## 8. Admin
-No admin UI in the app at all — settlement, result overrides, and any manual week-skipping are managed directly on the backend/database, not through the site. No auth needed anywhere since there's no admin surface exposed to the public app.
+## 8. Admin & player passcodes
+No admin UI in the app at all — settlement, result overrides, and any manual week-skipping are managed directly on the backend/database, not through the site.
+
+Players get a passcode after choosing their name on screen 1, so one player can't casually submit picks as another — but it's a lightweight gate, not real authentication (no signup, no password reset, no rate limiting beyond what's built in). Passcodes are set via the seed script (plaintext values live only in a local, gitignored env var, hashed with scrypt before being written to the DB) and distributed by whoever's running the pool. Fine for a group of friends; flagged here in case a future version wants proper auth instead.
 
 ## 9. Predictor season boundary
 The Predictor table runs continuously through the whole season, including play-offs, and resets only once all league fixtures (play-offs included) are finished — ready for the next season to start fresh.

@@ -11,9 +11,12 @@ datasource db {
 }
 
 model Player {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  createdAt DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  createdAt    DateTime @default(now())
+  // salt:hash (scrypt) — set via the seed script, not a self-serve field.
+  // Lightweight per-player gate, not real auth (see plan section 8).
+  passcodeHash String?
 
   wonRuns        Run[]           @relation("RunWinners")
   runEntries     RunEntry[]
