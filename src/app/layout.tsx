@@ -39,6 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div className="site-title-row">
             <HeaderIcon />
             <h1 className="site-title">Last Man Above A Sunbed Shop</h1>
+            <HeaderIcon mirror />
           </div>
         </header>
         <Ticker />
