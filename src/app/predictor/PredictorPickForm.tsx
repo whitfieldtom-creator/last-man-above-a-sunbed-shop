@@ -67,40 +67,42 @@ export default function PredictorPickForm({
   }
 
   return (
-    <div>
-      {deadlinePassed && <p style={{ color: "crimson" }}>Pick deadline has passed for this week.</p>}
-      {fixtures.length === 0 && <p>No Predictor fixtures this week.</p>}
+    <div className="stack">
+      {deadlinePassed && <p className="text-danger">Pick deadline has passed for this week.</p>}
+      {fixtures.length === 0 && <p className="text-muted">No Predictor fixtures this week.</p>}
 
-      {fixtures.map((fixture) => {
-        const value = scores[fixture.predictorFixtureId];
-        return (
-          <div key={fixture.predictorFixtureId} style={{ display: "flex", alignItems: "center", gap: "0.5rem", margin: "0.5rem 0" }}>
-            <span style={{ flex: 1 }}>{fixture.homeTeam}</span>
-            <input
-              type="number"
-              min={0}
-              disabled={deadlinePassed}
-              value={value.home}
-              onChange={(e) => setScore(fixture.predictorFixtureId, "home", e.target.value)}
-              style={{ width: "3rem" }}
-            />
-            <span>–</span>
-            <input
-              type="number"
-              min={0}
-              disabled={deadlinePassed}
-              value={value.away}
-              onChange={(e) => setScore(fixture.predictorFixtureId, "away", e.target.value)}
-              style={{ width: "3rem" }}
-            />
-            <span style={{ flex: 1 }}>{fixture.awayTeam}</span>
-          </div>
-        );
-      })}
+      <div className="panel stack">
+        {fixtures.map((fixture) => {
+          const value = scores[fixture.predictorFixtureId];
+          return (
+            <div key={fixture.predictorFixtureId} className="row">
+              <span style={{ flex: 1, textAlign: "right" }}>{fixture.homeTeam}</span>
+              <input
+                type="number"
+                min={0}
+                disabled={deadlinePassed}
+                value={value.home}
+                onChange={(e) => setScore(fixture.predictorFixtureId, "home", e.target.value)}
+                className="input input--score"
+              />
+              <span className="text-faint">–</span>
+              <input
+                type="number"
+                min={0}
+                disabled={deadlinePassed}
+                value={value.away}
+                onChange={(e) => setScore(fixture.predictorFixtureId, "away", e.target.value)}
+                className="input input--score"
+              />
+              <span style={{ flex: 1 }}>{fixture.awayTeam}</span>
+            </div>
+          );
+        })}
+      </div>
 
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      {error && <p className="text-danger">{error}</p>}
 
-      <button type="button" onClick={submit} disabled={submitting || deadlinePassed}>
+      <button type="button" className="btn btn-primary" onClick={submit} disabled={submitting || deadlinePassed}>
         {submitting ? "Saving…" : "Next"}
       </button>
     </div>

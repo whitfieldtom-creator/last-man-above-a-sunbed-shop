@@ -10,9 +10,9 @@ export default async function ChoosePlayerPage() {
   });
 
   return (
-    <main style={{ maxWidth: 480, margin: "4rem auto", padding: "0 1rem" }}>
-      <h1>Last Man Above A Sunbed Shop</h1>
-      <p>Choose your player</p>
+    <main>
+      <p className="eyebrow">Screen 1</p>
+      <h2>Choose your player</h2>
       <PlayerPicker players={players} />
     </main>
   );

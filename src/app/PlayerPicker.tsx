@@ -32,40 +32,46 @@ export default function PlayerPicker({ players }: { players: { id: number; name:
 
   if (!selected) {
     return (
-      <ul style={{ listStyle: "none", padding: 0 }}>
+      <div className="stack">
         {players.map((player) => (
-          <li key={player.id} style={{ margin: "0.5rem 0" }}>
-            <button
-              onClick={() => setSelected(player)}
-              style={{ font: "inherit", cursor: "pointer" }}
-            >
-              {player.name}
-            </button>
-          </li>
+          <button key={player.id} className="btn player-btn" onClick={() => setSelected(player)}>
+            {player.name}
+          </button>
         ))}
-      </ul>
+      </div>
     );
   }
 
   return (
-    <form onSubmit={submitPasscode}>
-      <p>
-        {selected.name} —{" "}
-        <button type="button" onClick={() => { setSelected(null); setError(null); }}>
-          not you?
-        </button>
-      </p>
+    <form onSubmit={submitPasscode} className="panel stack">
+      <div>
+        <p className="eyebrow">Playing as</p>
+        <p className="row">
+          <span style={{ fontSize: "1.2rem" }}>{selected.name}</span>
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => {
+              setSelected(null);
+              setError(null);
+            }}
+          >
+            not you?
+          </button>
+        </p>
+      </div>
       <input
         type="password"
         autoFocus
+        className="input"
         value={passcode}
         onChange={(e) => setPasscode(e.target.value)}
         placeholder="Passcode"
       />
-      <button type="submit" disabled={submitting}>
+      <button type="submit" className="btn btn-primary" disabled={submitting}>
         {submitting ? "Checking…" : "Go"}
       </button>
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      {error && <p className="text-danger">{error}</p>}
     </form>
   );
 }

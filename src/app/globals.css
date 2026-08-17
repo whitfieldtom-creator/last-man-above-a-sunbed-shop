@@ -1,17 +1,30 @@
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* "Vidiprinter" theme — see design-spec.md. Old-school BBC football
+   teleprinter under floodlights: dark pitch-green, phosphor-green ticker
+   text, amber scoreboard accents. */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --bg: #0b1210;
+  --panel-bg: #101b17;
+  --panel-border: #1e2c27;
+  --input-bg: #0b1512;
+  --input-border: #274238;
+  --ticker-bg: #060a08;
+  --accent-green: #39ff6a;
+  --accent-gold: #f2b705;
+  --danger: #e5484d;
+  --text-primary: #ededed;
+  --text-heading: #f5f5f0;
+  --text-muted: #7f9089;
+  --text-faint: #55655d;
+
+  --font-heading: var(--font-teko), sans-serif;
+  --font-body: var(--font-plex-sans), sans-serif;
+  --font-mono: var(--font-plex-mono), monospace;
 }
 
 html {
   height: 100%;
+  color-scheme: dark;
 }
 
 html,
@@ -24,17 +37,15 @@ body {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg);
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 * {
   box-sizing: border-box;
-  padding: 0;
-  margin: 0;
 }
 
 a {
@@ -42,8 +53,246 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  color: var(--text-heading);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  line-height: 1.05;
+}
+
+h1 {
+  font-size: 2.75rem;
+}
+h2 {
+  font-size: 1.85rem;
+  margin: 0 0 0.75rem;
+}
+h3 {
+  font-size: 1.3rem;
+  margin: 0 0 0.5rem;
+}
+
+p {
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* Layout chrome */
+.site-header {
+  padding: 1.75rem 1.5rem 0.5rem;
+  text-align: center;
+}
+.site-title {
+  margin: 0.1rem 0 0;
+}
+
+.site-content {
+  flex: 1;
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+/* Eyebrow label */
+.eyebrow {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  color: var(--accent-gold);
+  margin: 0 0 0.35rem;
+}
+
+/* Panel */
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 1.1rem;
+  margin: 1rem 0;
+}
+
+/* Vidiprinter ticker */
+.ticker {
+  background: var(--ticker-bg);
+  border-top: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--panel-border);
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0.55rem 0;
+}
+.ticker-track {
+  display: inline-flex;
+  font-family: var(--font-mono);
+  color: var(--accent-green);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  animation: ticker-scroll 28s linear infinite;
+}
+.ticker-track span {
+  padding-right: 3rem;
+}
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
   }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+}
+
+/* Buttons */
+.btn {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 0.6rem 0.95rem;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--text-muted);
+}
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-primary {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+  color: #04140b;
+  font-weight: 600;
+  width: 100%;
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  filter: none;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  padding: 0;
+}
+
+/* Team/player pick buttons */
+.pick-btn {
+  text-align: left;
+}
+.pick-btn--selected {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background: rgba(57, 255, 106, 0.1);
+}
+.pick-btn--used {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+.player-btn {
+  text-align: left;
+  font-size: 1.1rem;
+}
+.player-btn--selected {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  background: rgba(242, 183, 5, 0.1);
+}
+
+/* Chips */
+.chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.chip--alive {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+.chip--eliminated {
+  border-color: var(--danger);
+  color: var(--danger);
+  text-decoration: line-through;
+}
+
+/* Inputs */
+.input {
+  font-family: var(--font-body);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 0.55rem 0.7rem;
+  width: 100%;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--accent-green);
+}
+.input--score {
+  width: 3.25rem;
+  text-align: center;
+}
+
+/* Utility */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.text-muted {
+  color: var(--text-muted);
+}
+.text-faint {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+.text-danger {
+  color: var(--danger);
+}
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.list > li {
+  margin: 0.5rem 0;
+}
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }

@@ -36,34 +36,48 @@ export default async function ResultsPage() {
     .sort((a, b) => b.points - a.points);
 
   return (
-    <main style={{ maxWidth: 480, margin: "4rem auto", padding: "0 1rem" }}>
-      <h1>Results</h1>
+    <main>
+      <p className="eyebrow">Screen 4</p>
+      <h2>Results</h2>
 
       <section>
-        <h2>Last Man Standing</h2>
+        <p className="eyebrow" style={{ marginTop: "1.25rem" }}>
+          Last Man Standing
+        </p>
         {!activeRun ? (
-          <p>No run in progress.</p>
+          <p className="text-muted">No run in progress.</p>
         ) : (
-          <>
-            <p>Run #{activeRun.runNumber}</p>
-            <ul style={{ listStyle: "none", padding: 0 }}>
+          <div className="panel">
+            <p className="text-faint" style={{ marginBottom: "0.5rem" }}>
+              Run #{activeRun.runNumber}
+            </p>
+            <ul className="list">
               {activeRun.runEntries.map((entry) => (
-                <li key={entry.id} style={{ margin: "0.5rem 0" }}>
-                  {entry.player.name} —{" "}
-                  {entry.eliminated ? "eliminated" : `${entry.livesRemaining} ${entry.livesRemaining === 1 ? "life" : "lives"} left`}
+                <li key={entry.id} className="list-row">
+                  <span>{entry.player.name}</span>
+                  {entry.eliminated ? (
+                    <span className="chip chip--eliminated">Eliminated</span>
+                  ) : (
+                    <span className="chip chip--alive">
+                      {entry.livesRemaining} {entry.livesRemaining === 1 ? "life" : "lives"}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
-          </>
+          </div>
         )}
 
         {pastRuns.length > 0 && (
           <>
-            <h3>Past run winners</h3>
-            <ul style={{ listStyle: "none", padding: 0 }}>
+            <p className="eyebrow" style={{ marginTop: "1.25rem" }}>
+              Past run winners
+            </p>
+            <ul className="list panel">
               {pastRuns.map((run) => (
-                <li key={run.id}>
-                  Run #{run.runNumber}: {run.winners.map((w) => w.name).join(" & ") || "no winner"}
+                <li key={run.id} className="list-row">
+                  <span className="text-faint">Run #{run.runNumber}</span>
+                  <span>{run.winners.map((w) => w.name).join(" & ") || "no winner"}</span>
                 </li>
               ))}
             </ul>
@@ -72,17 +86,26 @@ export default async function ResultsPage() {
       </section>
 
       <section>
-        <h2>Score Predictor</h2>
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {predictorLeaderboard.map(({ player, points }) => (
-            <li key={player.id} style={{ margin: "0.5rem 0" }}>
-              {player.name} — {points} {points === 1 ? "point" : "points"}
+        <p className="eyebrow" style={{ marginTop: "1.5rem" }}>
+          Score Predictor
+        </p>
+        <ul className="list panel">
+          {predictorLeaderboard.map(({ player, points }, i) => (
+            <li key={player.id} className="list-row">
+              <span>
+                <span className="text-faint">{i + 1}.</span> {player.name}
+              </span>
+              <span className="text-faint">
+                {points} {points === 1 ? "point" : "points"}
+              </span>
             </li>
           ))}
         </ul>
       </section>
 
-      <Link href="/">Back to start</Link>
+      <Link href="/" className="link-btn">
+        Back to start
+      </Link>
     </main>
   );
 }

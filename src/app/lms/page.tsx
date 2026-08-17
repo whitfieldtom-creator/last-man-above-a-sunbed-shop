@@ -14,9 +14,10 @@ export default async function LmsPickPage() {
   const gameWeek = await getCurrentGameWeek();
   if (!gameWeek) {
     return (
-      <main style={{ maxWidth: 480, margin: "4rem auto", padding: "0 1rem" }}>
-        <h1>Last Man Standing</h1>
-        <p>No game week open right now — check back after the next pull.</p>
+      <main>
+        <p className="eyebrow">Screen 2</p>
+        <h2>Last Man Standing</h2>
+        <p className="text-muted">No game week open right now — check back after the next pull.</p>
       </main>
     );
   }
@@ -60,9 +61,15 @@ export default async function LmsPickPage() {
   const usedTeams = pastPicks.map((p) => p.teamPicked);
 
   return (
-    <main style={{ maxWidth: 480, margin: "4rem auto", padding: "0 1rem" }}>
-      <h1>Last Man Standing</h1>
-      <p>{player.name} — {runEntry.livesRemaining} {runEntry.livesRemaining === 1 ? "life" : "lives"} left</p>
+    <main>
+      <p className="eyebrow">Screen 2 · Week {gameWeek.weekNumber}</p>
+      <h2>Last Man Standing</h2>
+      <p className="row">
+        <span>{player.name}</span>
+        <span className="chip chip--alive">
+          {runEntry.livesRemaining} {runEntry.livesRemaining === 1 ? "life" : "lives"}
+        </span>
+      </p>
       <LmsPickForm
         leagueGroups={[...leagueGroups.values()]}
         existingPicks={existingPicks}

@@ -52,48 +52,53 @@ export default function LmsPickForm({
   }
 
   return (
-    <div>
-      {deadlinePassed && <p style={{ color: "crimson" }}>Pick deadline has passed for this week.</p>}
-
-      {leagueGroups.length === 0 && <p>No fixtures this week.</p>}
+    <div className="stack">
+      {deadlinePassed && <p className="text-danger">Pick deadline has passed for this week.</p>}
+      {leagueGroups.length === 0 && <p className="text-muted">No fixtures this week.</p>}
 
       {leagueGroups.map((group) => {
         const selected = selections[group.leagueId];
         return (
-          <section key={group.leagueId} style={{ margin: "1.5rem 0" }}>
-            <h2 style={{ fontSize: "1.1rem" }}>{group.leagueName}</h2>
-            {group.fixtures.map((fixture) => (
-              <div key={fixture.id} style={{ display: "flex", gap: "0.5rem", margin: "0.25rem 0" }}>
-                {[fixture.homeTeam, fixture.awayTeam].map((team) => {
-                  const isUsed = usedTeamSet.has(team);
-                  const isSelected = selected?.fixtureId === fixture.id && selected.teamPicked === team;
-                  return (
+          <section key={group.leagueId} className="panel">
+            <p className="eyebrow">{group.leagueName}</p>
+            <div className="stack">
+              {group.fixtures.map((fixture) => {
+                const homeSelected = selected?.fixtureId === fixture.id && selected.teamPicked === fixture.homeTeam;
+                const awaySelected = selected?.fixtureId === fixture.id && selected.teamPicked === fixture.awayTeam;
+                const homeUsed = usedTeamSet.has(fixture.homeTeam);
+                const awayUsed = usedTeamSet.has(fixture.awayTeam);
+                return (
+                  <div key={fixture.id} className="row">
                     <button
-                      key={team}
                       type="button"
-                      disabled={isUsed || deadlinePassed}
-                      onClick={() => pickTeam(group.leagueId, fixture.id, team)}
-                      style={{
-                        font: "inherit",
-                        cursor: isUsed || deadlinePassed ? "not-allowed" : "pointer",
-                        opacity: isUsed ? 0.4 : 1,
-                        fontWeight: isSelected ? "bold" : "normal",
-                        textDecoration: isSelected ? "underline" : "none",
-                      }}
+                      disabled={homeUsed || deadlinePassed}
+                      onClick={() => pickTeam(group.leagueId, fixture.id, fixture.homeTeam)}
+                      className={`btn pick-btn${homeSelected ? " pick-btn--selected" : ""}${homeUsed ? " pick-btn--used" : ""}`}
+                      style={{ flex: 1 }}
                     >
-                      {team}
+                      {fixture.homeTeam}
                     </button>
-                  );
-                })}
-              </div>
-            ))}
+                    <span className="text-faint">v</span>
+                    <button
+                      type="button"
+                      disabled={awayUsed || deadlinePassed}
+                      onClick={() => pickTeam(group.leagueId, fixture.id, fixture.awayTeam)}
+                      className={`btn pick-btn${awaySelected ? " pick-btn--selected" : ""}${awayUsed ? " pick-btn--used" : ""}`}
+                      style={{ flex: 1 }}
+                    >
+                      {fixture.awayTeam}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </section>
         );
       })}
 
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      {error && <p className="text-danger">{error}</p>}
 
-      <button type="button" onClick={submit} disabled={submitting || deadlinePassed}>
+      <button type="button" className="btn btn-primary" onClick={submit} disabled={submitting || deadlinePassed}>
         {submitting ? "Saving…" : "Next"}
       </button>
     </div>

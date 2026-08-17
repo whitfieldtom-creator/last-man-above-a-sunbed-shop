@@ -14,9 +14,10 @@ export default async function PredictorPickPage() {
   const gameWeek = await getCurrentGameWeek();
   if (!gameWeek) {
     return (
-      <main style={{ maxWidth: 480, margin: "4rem auto", padding: "0 1rem" }}>
-        <h1>Score Predictor</h1>
-        <p>No game week open right now — check back after the next pull.</p>
+      <main>
+        <p className="eyebrow">Screen 3</p>
+        <h2>Score Predictor</h2>
+        <p className="text-muted">No game week open right now — check back after the next pull.</p>
       </main>
     );
   }
@@ -35,9 +36,10 @@ export default async function PredictorPickPage() {
   );
 
   return (
-    <main style={{ maxWidth: 480, margin: "4rem auto", padding: "0 1rem" }}>
-      <h1>Score Predictor</h1>
-      <p>{player.name}</p>
+    <main>
+      <p className="eyebrow">Screen 3 · Week {gameWeek.weekNumber}</p>
+      <h2>Score Predictor</h2>
+      <p className="text-muted">{player.name}</p>
       <PredictorPickForm
         fixtures={predictorFixtures.map((pf) => ({
           predictorFixtureId: pf.id,
