@@ -1,4 +1,4 @@
-# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v8 — build-ready)
+# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v10 — build-ready)
 
 Two games, one app, sharing the same weekly fixture pull:
 1. **Last Man Standing (LMS)** — pick one team to win each week; wrong/no pick eliminates you; last one standing wins, then it resets.
@@ -37,11 +37,11 @@ Players (seeded directly into the DB, no admin UI needed for this):
 
 Each player has a passcode (plaintext distributed by whoever runs the pool, hashed at rest) entered after picking their name on screen 1 — a lightweight gate, not real authentication. See section 8.
 
-## 5. Data model (draft v3)
+## 5. Data model (draft v4)
 
 ```
 players
-  id, name, created_at                          -- seeded, six rows to start
+  id, name, created_at, passcode_hash (nullable)  -- seeded, six rows to start
 
 leagues
   id, name                                        -- Premier League, Championship, League One, League Two
@@ -96,10 +96,37 @@ Players get a passcode after choosing their name on screen 1, so one player can'
 ## 9. Predictor season boundary
 The Predictor table runs continuously through the whole season, including play-offs, and resets only once all league fixtures (play-offs included) are finished — ready for the next season to start fresh.
 
-## 10. Stack (unchanged from v1, confirm before build)
-- Frontend: React (Vite)
-- Backend: Node.js + Express, or Next.js API routes
-- DB: Postgres (Supabase/Neon) or SQLite to start
-- Fixture data: API-Football (free tier)
+## 10. Stack (built and deployed)
+- Frontend + backend: **Next.js (App Router)** — one deployable service, no separate React/Express split
+- DB: **Postgres**, provisioned as a Railway plugin (not Supabase/Neon/SQLite)
+- Fixture data: **TheSportsDB v1 API** (free tier — switched from API-Football, whose free plan doesn't cover the current season)
 - Scheduler: GitHub Actions weekly cron (Monday) hitting a backend settle+pull endpoint
-- Hosting: **Railway** (hobby plan, ~$5/mo) — always-on, no sleep/cold-start, deploy via git push; use Railway's Postgres add-on for the DB rather than a separate Supabase/Neon instance to keep everything in one place
+- Hosting: **Railway** (hobby plan, ~$5/mo) — always-on, no sleep/cold-start, deploy via git push
+
+## 11. Fixture data — TheSportsDB v1 integration detail (verified against the live API)
+Sticking with **v1** (free) rather than v2 (Premium-only, ~€9/month) — verified working for all four leagues, no need to pay.
+
+**Auth**: the free tier has no personal key — everyone free uses the same shared key `123`. Our actual call volume (~12 requests once a week) is tiny next to the 30 requests/minute free rate limit.
+
+**League IDs** (confirmed working, verified live for all four):
+- Premier League: `4328`
+- Championship: `4329`
+- League One: `4396`
+- League Two: `4397`
+
+**Endpoints tried, and what actually works:**
+- `eventsnextleague.php?id={leagueId}` — only returns the single next unplayed fixture, not "~15 upcoming" as first assumed. Not usable as the main pull source, but useful for discovering the current round number (`intRound`).
+- `eventsseason.php?id={leagueId}&s={season}` — hard-capped at exactly 15 events total per league regardless of params (confirmed identical across all 4 leagues). Works by coincidence in week 1 of a season, silently useless later. **Do not use.**
+- `eventsround.php?id={leagueId}&r={round}&s={season}` — **the correct endpoint.** Returns the full round (10 fixtures for the 20-team Premier League, 12 for the 24-team Championship/League One/Two), for both future (unplayed, `strStatus: "NS"`) and past (finished, `strStatus: "FT"`, scores populated) rounds.
+
+**Pull job (Monday)** — for each of the 4 leagues:
+1. `eventsnextleague.php?id={leagueId}` → read `intRound` (call it `R`) from the single event returned.
+2. Fetch **both** `eventsround.php?id={leagueId}&r={R}&s={season}` and `r={R+1}`, and merge. Round `R` alone isn't reliable — verified live that a round can be mostly in the past with only one delayed/rearranged fixture left "next" (this happened for the Championship: `R` was mostly Aug 14–17 fixtures, the actual target-window round was `R+1`). Fetching both and filtering by date is what makes this robust; `R+1` costs one harmless extra request when `R` already covers the whole window.
+3. Filter the merged list to fixtures with `dateEvent` inside the Fri–Thu window.
+4. Store each fixture's `idEvent` (as `external_id`, needed for settlement), `strHomeTeam`, `strAwayTeam`, `strTimestamp` (UTC kickoff time).
+
+Verified live for the Fri 21–Thu 27 Aug 2026 window: 10 + 12 + 11 + 12 = 45 fixtures across the four leagues — in the expected ~50 ballpark.
+
+**Settlement job (Monday, before pulling new fixtures)** — re-run the *same* `eventsround.php` call(s) used to pull that game week (no separate per-fixture lookup needed — confirmed `eventsround.php` returns updated `intHomeScore`/`intAwayScore` and `strStatus: "FT"` once matches finish, from the same request shape used to pull). Match returned events back to stored fixtures by `idEvent`. A fixture still `"NS"` (or a postponed/cancelled status) at settlement time = no result per the rules in section 2.
+
+**Season string**: TheSportsDB wants `"2026-2027"` format — the year football's August kickoff falls in, and the year after.

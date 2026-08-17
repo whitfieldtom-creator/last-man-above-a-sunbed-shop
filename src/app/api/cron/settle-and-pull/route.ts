@@ -23,11 +23,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // TODO: find the previous game week to settle, then call settleLmsGameWeek()
-  // from src/lib/lms.ts (lives/elimination logic already implemented there)
-  // TODO: settle Predictor scoring for the same week
-  // TODO: pull next Fri-Thu fixture window across all four leagues
-  // TODO: randomly select 5 fixtures for that week's Score Predictor
+  // TODO: find/create the Run + this week's GameWeek (nothing bootstraps
+  // these yet), then:
+  //   1. pullFixturesForGameWeek() from src/lib/fixtures.ts against last
+  //      week's GameWeek (it re-syncs results for already-stored fixtures,
+  //      which is how settlement reads scores — see plan section 11)
+  //   2. settleLmsGameWeek() from src/lib/lms.ts for that same week
+  //   3. settle Predictor scoring for that week (not implemented yet)
+  //   4. pullFixturesForGameWeek() again for the new upcoming GameWeek
+  //   5. selectPredictorFixtures() from src/lib/fixtures.ts for that new week
 
   return NextResponse.json({ ok: true });
 }
