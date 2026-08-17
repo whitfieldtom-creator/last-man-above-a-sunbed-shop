@@ -73,14 +73,16 @@ predictor_picks
   id, player_id, predictor_fixture_id,
   predicted_home_score, predicted_away_score, points_awarded (nullable)
 
-used_teams                                        -- or derive from lms_picks where correct = true
-  player_id, run_id, team_name
+used_teams                                        -- derive from lms_picks: every team picked this run,
+  player_id, run_id, team_name                     -- regardless of correct/incorrect (section 6)
 ```
 
 ## 6. Last Man Standing — survival rule (lives)
 Each player gets **4 lives per run**. Every wrong, postponed, or missing pick costs one life (a week with multiple league picks can cost multiple lives — one per miss, not capped at one per week). Lives floor at 0 rather than going negative; a player isn't eliminated for merely reaching 0 lives, only when they then miss again while already at 0 — i.e. their 5th miss ends their run. Screen 4 shows each surviving player's lives remaining.
 
 **Ties**: if every player still in the run is eliminated in the same week (all hit their 5th miss together), they're declared **joint winners** of that run rather than the run continuing with no survivors.
+
+**Used teams**: once picked, a team is unavailable again for the rest of the run — regardless of whether that pick turned out right or wrong. A wrong pick that survives on a life still burns the team, so nobody can just keep re-picking the same favourite and treating lives as free insurance.
 
 ## 7. Scoring — Score Predictor
 - 1 point: correct result (home win / away win / draw) but wrong scoreline
