@@ -1,0 +1,19 @@
+name: Weekly settle and pull
+
+on:
+  schedule:
+    # 07:00 UTC every Monday (07:00 GMT / 08:00 BST — always still Monday morning UK time)
+    - cron: "0 7 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  settle-and-pull:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call settle-and-pull endpoint
+        run: |
+          curl --fail-with-body -X POST "${APP_URL}/api/cron/settle-and-pull" \
+            -H "Authorization: Bearer ${CRON_SECRET}"
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

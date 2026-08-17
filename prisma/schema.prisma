@@ -1,0 +1,145 @@
+// Prisma schema for Last Man Above A Sunbed Shop
+// Data model: last-man-standing-plan.md section 5
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Player {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  wonRuns        Run[]           @relation("RunWinner")
+  lmsPicks       LmsPick[]
+  predictorPicks PredictorPick[]
+  usedTeams      UsedTeam[]
+}
+
+model League {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  fixtures Fixture[]
+  lmsPicks LmsPick[]
+}
+
+model Run {
+  id             Int       @id @default(autoincrement())
+  runNumber      Int       @unique
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  winnerPlayerId Int?
+
+  winner    Player?    @relation("RunWinner", fields: [winnerPlayerId], references: [id])
+  gameWeeks GameWeek[]
+  usedTeams UsedTeam[]
+}
+
+enum GameWeekStatus {
+  open
+  locked
+  settled
+  skipped
+}
+
+model GameWeek {
+  id           Int            @id @default(autoincrement())
+  runId        Int
+  weekNumber   Int
+  windowStart  DateTime
+  windowEnd    DateTime
+  pickDeadline DateTime
+  status       GameWeekStatus @default(open)
+
+  run               Run                @relation(fields: [runId], references: [id])
+  fixtures          Fixture[]
+  predictorFixtures PredictorFixture[]
+  lmsPicks          LmsPick[]
+
+  @@unique([runId, weekNumber])
+}
+
+enum FixtureResult {
+  pending
+  home
+  away
+  draw
+  postponed
+}
+
+model Fixture {
+  id          Int           @id @default(autoincrement())
+  gameWeekId  Int
+  leagueId    Int
+  homeTeam    String
+  awayTeam    String
+  kickoffTime DateTime
+  result      FixtureResult @default(pending)
+  homeScore   Int?
+  awayScore   Int?
+  externalId  String        @unique
+
+  gameWeek         GameWeek          @relation(fields: [gameWeekId], references: [id])
+  league           League            @relation(fields: [leagueId], references: [id])
+  predictorFixture PredictorFixture?
+  lmsPicks         LmsPick[]
+}
+
+model PredictorFixture {
+  id         Int @id @default(autoincrement())
+  gameWeekId Int
+  fixtureId  Int @unique
+
+  gameWeek       GameWeek        @relation(fields: [gameWeekId], references: [id])
+  fixture        Fixture         @relation(fields: [fixtureId], references: [id])
+  predictorPicks PredictorPick[]
+}
+
+model LmsPick {
+  id         Int      @id @default(autoincrement())
+  playerId   Int
+  gameWeekId Int
+  leagueId   Int
+  fixtureId  Int
+  teamPicked String
+  correct    Boolean?
+
+  player   Player   @relation(fields: [playerId], references: [id])
+  gameWeek GameWeek @relation(fields: [gameWeekId], references: [id])
+  league   League   @relation(fields: [leagueId], references: [id])
+  fixture  Fixture  @relation(fields: [fixtureId], references: [id])
+
+  @@unique([playerId, gameWeekId, leagueId])
+}
+
+model PredictorPick {
+  id                 Int  @id @default(autoincrement())
+  playerId           Int
+  predictorFixtureId Int
+  predictedHomeScore Int
+  predictedAwayScore Int
+  pointsAwarded      Int?
+
+  player           Player           @relation(fields: [playerId], references: [id])
+  predictorFixture PredictorFixture @relation(fields: [predictorFixtureId], references: [id])
+
+  @@unique([playerId, predictorFixtureId])
+}
+
+model UsedTeam {
+  id       Int    @id @default(autoincrement())
+  playerId Int
+  runId    Int
+  teamName String
+
+  player Player @relation(fields: [playerId], references: [id])
+  run    Run    @relation(fields: [runId], references: [id])
+
+  @@unique([playerId, runId, teamName])
+}
