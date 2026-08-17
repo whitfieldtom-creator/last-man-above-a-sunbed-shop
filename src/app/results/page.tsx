@@ -24,6 +24,17 @@ export default async function ResultsPage() {
     include: { winners: true },
   });
 
+  const players = await prisma.player.findMany({ orderBy: { id: "asc" } });
+  const pointTotals = await prisma.predictorPick.groupBy({
+    by: ["playerId"],
+    where: { pointsAwarded: { not: null } },
+    _sum: { pointsAwarded: true },
+  });
+  const pointsByPlayerId = new Map(pointTotals.map((t) => [t.playerId, t._sum.pointsAwarded ?? 0]));
+  const predictorLeaderboard = players
+    .map((player) => ({ player, points: pointsByPlayerId.get(player.id) ?? 0 }))
+    .sort((a, b) => b.points - a.points);
+
   return (
     <main style={{ maxWidth: 480, margin: "4rem auto", padding: "0 1rem" }}>
       <h1>Results</h1>
@@ -62,7 +73,13 @@ export default async function ResultsPage() {
 
       <section>
         <h2>Score Predictor</h2>
-        <p>Leaderboard coming soon.</p>
+        <ul style={{ listStyle: "none", padding: 0 }}>
+          {predictorLeaderboard.map(({ player, points }) => (
+            <li key={player.id} style={{ margin: "0.5rem 0" }}>
+              {player.name} — {points} {points === 1 ? "point" : "points"}
+            </li>
+          ))}
+        </ul>
       </section>
 
       <Link href="/">Back to start</Link>

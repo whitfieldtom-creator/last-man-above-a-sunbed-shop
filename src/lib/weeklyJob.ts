@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { pullFixturesForGameWeek, selectPredictorFixtures } from "@/lib/fixtures";
 import { settleLmsGameWeek, STARTING_LIVES } from "@/lib/lms";
+import { settlePredictorGameWeek } from "@/lib/predictor";
 
 // A Fri-Thu window is 6 days; the cron fires every 7. So the window pulled
 // this Monday is still mid-flight on the very next Monday, and only becomes
@@ -83,18 +84,19 @@ export async function runWeeklySettleAndPull(referenceDate = new Date()) {
   for (const week of duePastWeeks) {
     await pullFixturesForGameWeek(week.id); // re-sync final scores before settling
 
+    // LMS has its own zero-picks safety net (missing pick screens shouldn't
+    // cost anyone a life), but Predictor has no such risk — scoring a week
+    // with no Predictor picks is a harmless no-op, so it always runs.
     const pickCount = await prisma.lmsPick.count({ where: { gameWeekId: week.id } });
     if (pickCount === 0) {
-      // Nobody could have picked (e.g. the pick screens didn't exist yet
-      // when this window was live) — don't cost anyone a life for it.
       await prisma.gameWeek.update({ where: { id: week.id }, data: { status: "skipped" } });
       skippedWeekIds.push(week.id);
-      continue;
+    } else {
+      await settleLmsGameWeek(week.id);
+      settledWeekIds.push(week.id);
     }
 
-    await settleLmsGameWeek(week.id);
-    // TODO: settle Predictor scoring for this week (not implemented yet)
-    settledWeekIds.push(week.id);
+    await settlePredictorGameWeek(week.id);
   }
 
   // Settlement above may have just ended the run (down to 1 or 0 survivors),
