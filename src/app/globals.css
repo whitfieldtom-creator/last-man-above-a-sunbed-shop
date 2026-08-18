@@ -96,8 +96,8 @@ p {
   margin: 0.1rem 0 0;
 }
 .header-icon {
-  width: 3.5rem;
-  height: auto;
+  width: auto;
+  height: 2.75rem;
   flex-shrink: 0;
 }
 

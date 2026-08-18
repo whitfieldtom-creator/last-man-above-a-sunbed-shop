@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Teko, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Ticker from "./Ticker";
-import HeaderIcon from "./HeaderIcon";
 
 const teko = Teko({
   variable: "--font-teko",
@@ -37,9 +37,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <header className="site-header">
           <p className="eyebrow">Last Man Standing · Score Predictor</p>
           <div className="site-title-row">
-            <HeaderIcon />
+            <Image src="/sunbed-icon.png" alt="" width={480} height={232} className="header-icon" priority />
             <h1 className="site-title">Last Man Above A Sunbed Shop</h1>
-            <HeaderIcon mirror />
           </div>
         </header>
         <Ticker />
