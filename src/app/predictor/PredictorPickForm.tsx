@@ -64,7 +64,7 @@ export default function PredictorPickForm({
       setError(body?.error ?? "Couldn't save predictions — try again.");
       return;
     }
-    router.push("/results");
+    router.push("/menu");
   }
 
   return (
