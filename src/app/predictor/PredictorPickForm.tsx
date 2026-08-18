@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type FixtureRow = { predictorFixtureId: number; homeTeam: string; awayTeam: string };
 type Score = { homeScore: number; awayScore: number };
@@ -27,10 +28,10 @@ export default function PredictorPickForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const deadlinePassed = new Date() > new Date(deadlineIso);
+  const readOnly = new Date() > new Date(deadlineIso);
 
   function setScore(id: number, side: "home" | "away", value: string) {
-    if (deadlinePassed) return;
+    if (readOnly) return;
     setScores((prev) => ({ ...prev, [id]: { ...prev[id], [side]: value } }));
   }
 
@@ -68,7 +69,7 @@ export default function PredictorPickForm({
 
   return (
     <div className="stack">
-      {deadlinePassed && <p className="text-danger">Pick deadline has passed for this week.</p>}
+      {readOnly && <p className="eyebrow">Picks locked — here&apos;s what you submitted</p>}
       {fixtures.length === 0 && <p className="text-muted">No Predictor fixtures this week.</p>}
 
       <div className="panel stack">
@@ -80,7 +81,7 @@ export default function PredictorPickForm({
               <input
                 type="number"
                 min={0}
-                disabled={deadlinePassed}
+                disabled={readOnly}
                 value={value.home}
                 onChange={(e) => setScore(fixture.predictorFixtureId, "home", e.target.value)}
                 className="input input--score"
@@ -89,7 +90,7 @@ export default function PredictorPickForm({
               <input
                 type="number"
                 min={0}
-                disabled={deadlinePassed}
+                disabled={readOnly}
                 value={value.away}
                 onChange={(e) => setScore(fixture.predictorFixtureId, "away", e.target.value)}
                 className="input input--score"
@@ -102,9 +103,15 @@ export default function PredictorPickForm({
 
       {error && <p className="text-danger">{error}</p>}
 
-      <button type="button" className="btn btn-primary" onClick={submit} disabled={submitting || deadlinePassed}>
-        {submitting ? "Saving…" : "Next"}
-      </button>
+      {readOnly ? (
+        <Link href="/results" className="btn btn-primary">
+          Back to leaderboard
+        </Link>
+      ) : (
+        <button type="button" className="btn btn-primary" onClick={submit} disabled={submitting}>
+          {submitting ? "Saving…" : "Next"}
+        </button>
+      )}
     </div>
   );
 }

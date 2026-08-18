@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentGameWeek, getCurrentPlayer } from "@/lib/session";
 import LmsPickForm from "./LmsPickForm";
 
-// Screen 2: Last Man Standing pick — one pick per league with fixtures this week.
+// Screen 3: Last Man Standing pick — one pick per league with fixtures this week.
 // See last-man-standing-plan.md section 3.
 export const dynamic = "force-dynamic";
 
@@ -15,9 +16,12 @@ export default async function LmsPickPage() {
   if (!gameWeek) {
     return (
       <main>
-        <p className="eyebrow">Screen 2</p>
+        <p className="eyebrow">Screen 3</p>
         <h2>Last Man Standing</h2>
         <p className="text-muted">No game week open right now — check back after the next pull.</p>
+        <Link href="/menu" className="link-btn">
+          ← Back to menu
+        </Link>
       </main>
     );
   }
@@ -62,7 +66,7 @@ export default async function LmsPickPage() {
 
   return (
     <main>
-      <p className="eyebrow">Screen 2 · Week {gameWeek.weekNumber}</p>
+      <p className="eyebrow">Screen 3 · Week {gameWeek.weekNumber}</p>
       <h2>Last Man Standing</h2>
       <p className="row">
         <span>{player.name}</span>
@@ -76,6 +80,11 @@ export default async function LmsPickPage() {
         usedTeams={usedTeams}
         deadlineIso={gameWeek.pickDeadline.toISOString()}
       />
+      <p style={{ marginTop: "1rem" }}>
+        <Link href="/menu" className="link-btn">
+          ← Back to menu
+        </Link>
+      </p>
     </main>
   );
 }

@@ -38,7 +38,7 @@ function mapEventStatus(event: SportsDbEvent): {
   return { result: "pending", homeScore: null, awayScore: null };
 }
 
-// Pulls fixtures for every league into `gameWeekId`'s Fri-Thu window, and
+// Pulls fixtures for every league into `gameWeekId`'s Fri-Mon window, and
 // re-syncs results for fixtures already stored there (same call covers both
 // pulling and settling — see section 11). Returns the number of fixtures
 // created or updated.

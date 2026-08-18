@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 
-// Screen 4: Results / leaderboard — LMS run status + Predictor points table.
+// Screen 5: Results / leaderboard — LMS run status + Predictor points table.
 // See last-man-standing-plan.md section 3 and section 6 for the lives rule.
 // Always reads current picks/eliminations, so it can't be statically prerendered.
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export default async function ResultsPage() {
 
   return (
     <main>
-      <p className="eyebrow">Screen 4</p>
+      <p className="eyebrow">Screen 5</p>
       <h2>Results</h2>
 
       <section>
@@ -103,8 +103,8 @@ export default async function ResultsPage() {
         </ul>
       </section>
 
-      <Link href="/" className="link-btn">
-        Back to start
+      <Link href="/menu" className="link-btn">
+        ← Back to menu
       </Link>
     </main>
   );

@@ -2,7 +2,7 @@ import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { runWeeklySettleAndPull } from "@/lib/weeklyJob";
 
-// Triggered once a week (Monday) by .github/workflows/weekly-settle.yml.
+// Triggered once a week (Tuesday) by .github/workflows/weekly-settle.yml.
 // Settles the previous game week and pulls the next fixture window —
 // see last-man-standing-plan.md section 1.
 function isAuthorized(request: NextRequest): boolean {

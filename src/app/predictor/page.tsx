@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentGameWeek, getCurrentPlayer } from "@/lib/session";
 import PredictorPickForm from "./PredictorPickForm";
 
-// Screen 3: Score Predictor — same 5 fixtures for every player.
+// Screen 4: Score Predictor — same 5 fixtures for every player.
 // See last-man-standing-plan.md section 3.
 export const dynamic = "force-dynamic";
 
@@ -15,9 +16,12 @@ export default async function PredictorPickPage() {
   if (!gameWeek) {
     return (
       <main>
-        <p className="eyebrow">Screen 3</p>
+        <p className="eyebrow">Screen 4</p>
         <h2>Score Predictor</h2>
         <p className="text-muted">No game week open right now — check back after the next pull.</p>
+        <Link href="/menu" className="link-btn">
+          ← Back to menu
+        </Link>
       </main>
     );
   }
@@ -37,7 +41,7 @@ export default async function PredictorPickPage() {
 
   return (
     <main>
-      <p className="eyebrow">Screen 3 · Week {gameWeek.weekNumber}</p>
+      <p className="eyebrow">Screen 4 · Week {gameWeek.weekNumber}</p>
       <h2>Score Predictor</h2>
       <p className="text-muted">{player.name}</p>
       <PredictorPickForm
@@ -49,6 +53,11 @@ export default async function PredictorPickPage() {
         existingPicks={existingPicks}
         deadlineIso={gameWeek.pickDeadline.toISOString()}
       />
+      <p style={{ marginTop: "1rem" }}>
+        <Link href="/menu" className="link-btn">
+          ← Back to menu
+        </Link>
+      </p>
     </main>
   );
 }

@@ -2,8 +2,8 @@ name: Weekly settle and pull
 
 on:
   schedule:
-    # 07:00 UTC every Monday (07:00 GMT / 08:00 BST — always still Monday morning UK time)
-    - cron: "0 7 * * 1"
+    # 07:00 UTC every Tuesday (07:00 GMT / 08:00 BST — always still Tuesday morning UK time)
+    - cron: "0 7 * * 2"
   workflow_dispatch: {}
 
 jobs:

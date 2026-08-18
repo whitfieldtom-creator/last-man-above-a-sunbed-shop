@@ -3,12 +3,12 @@ import { pullFixturesForGameWeek, selectPredictorFixtures } from "@/lib/fixtures
 import { settleLmsGameWeek, STARTING_LIVES } from "@/lib/lms";
 import { settlePredictorGameWeek } from "@/lib/predictor";
 
-// A Fri-Thu window is 6 days; the cron fires every 7. So the window pulled
-// this Monday is still mid-flight on the very next Monday, and only becomes
-// settleable once its Thursday has actually passed — this naturally lags by
-// about a cycle at first and then self-corrects. See last-man-standing-plan.md
+// A Fri-Mon window is 4 days, pulled every Tuesday (7-day cadence) — by the
+// time next Tuesday's job runs, this window's Monday has always already
+// passed (windowEnd = Tuesday+6, next run = Tuesday+7), so unlike the old
+// Fri-Thu design this never lags a cycle behind. See last-man-standing-plan.md
 // sections 1 and 11.
-function nextFridayThroughThursday(referenceDate: Date): { windowStart: Date; windowEnd: Date } {
+function nextFridayThroughMonday(referenceDate: Date): { windowStart: Date; windowEnd: Date } {
   const today = new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), referenceDate.getUTCDate()));
   const day = today.getUTCDay(); // 0=Sun..6=Sat, Fri=5
   let daysUntilFriday = (5 - day + 7) % 7;
@@ -18,7 +18,7 @@ function nextFridayThroughThursday(referenceDate: Date): { windowStart: Date; wi
   windowStart.setUTCDate(windowStart.getUTCDate() + daysUntilFriday);
 
   const windowEnd = new Date(windowStart);
-  windowEnd.setUTCDate(windowEnd.getUTCDate() + 6); // Thursday
+  windowEnd.setUTCDate(windowEnd.getUTCDate() + 3); // Monday
   windowEnd.setUTCHours(23, 59, 59, 999);
 
   return { windowStart, windowEnd };
@@ -66,9 +66,9 @@ async function getOrCreateGameWeek(runId: number, windowStart: Date, windowEnd: 
   });
 }
 
-// The full Monday job: settle whichever past game weeks have actually
-// finished, then pull the upcoming Fri-Thu window. Safe to call more than
-// once for the same Monday (idempotent) and safe to call after a missed
+// The full Tuesday job: settle whichever past game weeks have actually
+// finished, then pull the upcoming Fri-Mon window. Safe to call more than
+// once for the same Tuesday (idempotent) and safe to call after a missed
 // week or two (settles everything that's become due, oldest first).
 export async function runWeeklySettleAndPull(referenceDate = new Date()) {
   const settledWeekIds: number[] = [];
@@ -102,7 +102,7 @@ export async function runWeeklySettleAndPull(referenceDate = new Date()) {
   // Settlement above may have just ended the run (down to 1 or 0 survivors),
   // so re-resolve the active run before pulling the upcoming window.
   const runForPull = await getOrCreateActiveRun();
-  const { windowStart, windowEnd } = nextFridayThroughThursday(referenceDate);
+  const { windowStart, windowEnd } = nextFridayThroughMonday(referenceDate);
   const gameWeek = await getOrCreateGameWeek(runForPull.id, windowStart, windowEnd);
   const fixtureCount = await pullFixturesForGameWeek(gameWeek.id);
 

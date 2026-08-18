@@ -1,4 +1,4 @@
-# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v10 — build-ready)
+# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v15 — build-ready)
 
 Two games, one app, sharing the same weekly fixture pull:
 1. **Last Man Standing (LMS)** — pick one team to win each week; wrong/no pick eliminates you; last one standing wins, then it resets.
@@ -6,9 +6,23 @@ Two games, one app, sharing the same weekly fixture pull:
 
 ## 1. Weekly cycle
 
-- **Monday**: single scheduled job does two things in one run:
-  1. **Settles last week** — pulls final scores for the previous game week's fixtures, marks LMS picks correct/incorrect (eliminating as needed), scores Predictor picks
-  2. **Pulls next window** — fetches fixtures for **next Friday through the Thursday after** (pulled Mon 17 Aug → window is Fri 21 Aug–Thu 27 Aug), across all four English leagues, and randomly selects 5 of those fixtures for that week's Score Predictor
+**Game week window redefined: Friday through Monday (inclusive)** — not Friday–Thursday as in earlier drafts. A single scheduled job runs **every Tuesday**, doing both steps together (this combined-job design now works cleanly because the window is short enough not to overlap the next pull — see below):
+
+1. **Settle** the game week that just finished (its window ended **yesterday**, Monday) — pull final results, grade LMS picks (eliminate as needed) and Predictor picks. Use a date check (`window_end` = yesterday, not yet settled) rather than a hardcoded offset, so this self-corrects if a run is ever missed or delayed.
+2. **Pull** the next window's fixtures — **next Friday through the Monday after** — across all four English leagues, and randomly select 5 of those fixtures for that week's Score Predictor.
+
+Worked example with real dates:
+- Tue 18 Aug: pull GW1 (Fri 21–Mon 24 Aug) — nothing to settle yet, first ever run
+- Fri 21 Aug, 12:00: GW1 picks lock
+- Games play Fri 21–Mon 24 Aug
+- Tue 25 Aug: **settle GW1** (finished Mon 24 Aug) + **pull GW2** (Fri 28–Mon 31 Aug)
+- Fri 28 Aug, 12:00: GW2 picks lock
+- Tue 1 Sep: settle GW2 + pull GW3 (Fri 4–Mon 7 Sep), and so on
+
+Why this works cleanly now: the window is only 4 days (Fri–Mon), settled the very next day (Tuesday), with a full 3 days of buffer before that same week's Friday-noon deadline for the *next* game week. This avoids the overlap bug the original Fri–Thu design had (where a 6-day window pulled every 7 days meant the next pull landed mid-window, before results existed) — no need for a separate Friday settle job anymore, one Tuesday job handles both steps safely.
+
+**Smaller fixture pool, worth knowing**: the Predictor's "skip the week if fewer than 5 total fixtures" rule (section 2) will likely trigger somewhat more often now, since the pool it draws from is 4 days instead of the old 6 — especially around international breaks.
+
 - **Pick deadline**: midday Friday UK time (fixed cutoff, not tied to individual kickoff times) — covers both LMS and Predictor picks for that window
 - Leagues: **Premier League, Championship, League One, League Two**
 
@@ -21,15 +35,20 @@ Two games, one app, sharing the same weekly fixture pull:
   - **LMS**: doesn't need all four leagues. Use whichever leagues have fixtures that window — e.g. if only League One and League Two are playing, the LMS pick screen just shows those two leagues. Only skip LMS for the week if *zero* leagues have any fixtures at all.
   - **Predictor**: skip the week only if there are fewer than 5 fixtures in total across all four leagues combined (not enough to fill the 5 random picks).
 
-## 3. App flow (4 screens)
+## 3. App flow
 
 1. **Choose player** — select from the seeded player list (see below); no self-serve signup, no in-app creation screen needed
-2. **Last Man Standing pick** — one pick required per league that has fixtures that week (so up to four picks in a full week, fewer if a league has no fixtures/is a thin week per section 2); click a team name in each league to pick them as winner; teams the player has already used this run are greyed out and unclickable per league; clicking "Next" submits all of that week's picks together
-   - Skipped entirely for eliminated players — they go straight to screen 3
-3. **Score Predictor** — the same 5 randomly-selected fixtures for every player; enter a predicted score for each; clicking "Next" submits
-4. **Results / leaderboard** — two separate panels:
+2. **Branch — "Make picks" or "View leaderboard"**:
+   - Button label/behaviour depends on the current game week's `status`:
+     - **`open`** (before Friday 12:00 deadline): button reads **"Make picks"** — full editable flow, as below
+     - **`locked`** (Friday 12:00 → the following Tuesday's settle+pull job): button reads **"View my picks"** — same screens, but read-only: shows exactly what the player already submitted (their LMS team per league, their Predictor scores), no inputs, no submit action. This gives players visibility into their own picks right up until the fixtures get replaced by the next pull, rather than losing access the moment the deadline passes.
+   - **View leaderboard** is always available, regardless of pick-window state.
+3. **Last Man Standing pick** *(reached via "Make picks" or "View my picks")* — one pick required per league that has fixtures that week (so up to four picks in a full week, fewer if a league has no fixtures/is a thin week per section 2); click a team name in each league to pick them as winner; teams the player has already used this run are greyed out and unclickable per league; clicking "Next" submits all of that week's picks together, then continues to step 4. In read-only mode, the player's own pick is shown highlighted with no other interaction available.
+   - Skipped entirely for eliminated players — they go straight to step 4
+4. **Score Predictor** *(reached via "Make picks" or "View my picks", after step 3)* — the same 5 randomly-selected fixtures for every player; enter a predicted score for each; clicking "Next" submits and returns to the branch/leaderboard. In read-only mode, shows the player's already-submitted scores with no inputs.
+5. **Leaderboard** — reachable directly from step 2, or automatically after finishing picks in steps 3-4. Two separate panels:
    - LMS: current run status, each surviving player's lives remaining, past run winners
-   - Predictor: season-long points table (1 pt correct result, 3 pts exact score — assuming exact score scores 3 total, not 3 on top of the 1; flag if you meant otherwise)
+   - Predictor: season-long points table (1 pt correct result, 3 pts exact score — total, not stacked)
 
 ## 4. Seed data
 Players (seeded directly into the DB, no admin UI needed for this):
@@ -37,7 +56,7 @@ Players (seeded directly into the DB, no admin UI needed for this):
 
 Each player has a passcode (plaintext distributed by whoever runs the pool, hashed at rest) entered after picking their name on screen 1 — a lightweight gate, not real authentication. See section 8.
 
-## 5. Data model (draft v4)
+## 5. Data model (draft v5)
 
 ```
 players
@@ -54,7 +73,7 @@ run_entries                                        -- one row per player per run
   id, run_id, player_id, lives_remaining (starts at 4), eliminated, eliminated_at_week_id (nullable)
 
 game_weeks
-  id, run_id, week_number, window_start (Fri), window_end (Thu),
+  id, run_id, week_number, window_start (Fri), window_end (Mon),
   pick_deadline (Fri 12:00 UK), status (open | locked | settled | skipped)
 
 fixtures
@@ -78,7 +97,7 @@ used_teams                                        -- derive from lms_picks: ever
 ```
 
 ## 6. Last Man Standing — survival rule (lives)
-Each player gets **4 lives per run**. Every wrong, postponed, or missing pick costs one life (a week with multiple league picks can cost multiple lives — one per miss, not capped at one per week). Lives floor at 0 rather than going negative; a player isn't eliminated for merely reaching 0 lives, only when they then miss again while already at 0 — i.e. their 5th miss ends their run. Screen 4 shows each surviving player's lives remaining.
+Each player gets **4 lives per run**. Every wrong, postponed, or missing pick costs one life (a week with multiple league picks can cost multiple lives — one per miss, not capped at one per week). Lives floor at 0 rather than going negative; a player isn't eliminated for merely reaching 0 lives, only when they then miss again while already at 0 — i.e. their 5th miss ends their run. Screen 5 shows each surviving player's lives remaining.
 
 **Ties**: if every player still in the run is eliminated in the same week (all hit their 5th miss together), they're declared **joint winners** of that run rather than the run continuing with no survivors.
 
@@ -102,7 +121,7 @@ The Predictor table runs continuously through the whole season, including play-o
 - Frontend + backend: **Next.js (App Router)** — one deployable service, no separate React/Express split
 - DB: **Postgres**, provisioned as a Railway plugin (not Supabase/Neon/SQLite)
 - Fixture data: **TheSportsDB v1 API** (free tier — switched from API-Football, whose free plan doesn't cover the current season)
-- Scheduler: GitHub Actions weekly cron (Monday) hitting a backend settle+pull endpoint
+- Scheduler: GitHub Actions weekly cron (**Tuesday**, see section 1) hitting a backend settle+pull endpoint
 - Hosting: **Railway** (hobby plan, ~$5/mo) — always-on, no sleep/cold-start, deploy via git push
 
 ## 11. Fixture data — TheSportsDB v1 integration detail (verified against the live API)
@@ -121,14 +140,12 @@ Sticking with **v1** (free) rather than v2 (Premium-only, ~€9/month) — verif
 - `eventsseason.php?id={leagueId}&s={season}` — hard-capped at exactly 15 events total per league regardless of params (confirmed identical across all 4 leagues). Works by coincidence in week 1 of a season, silently useless later. **Do not use.**
 - `eventsround.php?id={leagueId}&r={round}&s={season}` — **the correct endpoint.** Returns the full round (10 fixtures for the 20-team Premier League, 12 for the 24-team Championship/League One/Two), for both future (unplayed, `strStatus: "NS"`) and past (finished, `strStatus: "FT"`, scores populated) rounds.
 
-**Pull job (Monday)** — for each of the 4 leagues:
+**Pull job (Tuesday)** — for each of the 4 leagues:
 1. `eventsnextleague.php?id={leagueId}` → read `intRound` (call it `R`) from the single event returned.
 2. Fetch **both** `eventsround.php?id={leagueId}&r={R}&s={season}` and `r={R+1}`, and merge. Round `R` alone isn't reliable — verified live that a round can be mostly in the past with only one delayed/rearranged fixture left "next" (this happened for the Championship: `R` was mostly Aug 14–17 fixtures, the actual target-window round was `R+1`). Fetching both and filtering by date is what makes this robust; `R+1` costs one harmless extra request when `R` already covers the whole window.
-3. Filter the merged list to fixtures with `dateEvent` inside the Fri–Thu window.
+3. Filter the merged list to fixtures with `dateEvent` inside the Fri–Mon window (now 4 days, not 7 — see section 1; expect a smaller per-week fixture count than the original Fri–Thu design, not yet re-verified against a live pull for this exact window shape).
 4. Store each fixture's `idEvent` (as `external_id`, needed for settlement), `strHomeTeam`, `strAwayTeam`, `strTimestamp` (UTC kickoff time).
 
-Verified live for the Fri 21–Thu 27 Aug 2026 window: 10 + 12 + 11 + 12 = 45 fixtures across the four leagues — in the expected ~50 ballpark.
-
-**Settlement job (Monday, before pulling new fixtures)** — re-run the *same* `eventsround.php` call(s) used to pull that game week (no separate per-fixture lookup needed — confirmed `eventsround.php` returns updated `intHomeScore`/`intAwayScore` and `strStatus: "FT"` once matches finish, from the same request shape used to pull). Match returned events back to stored fixtures by `idEvent`. A fixture still `"NS"` (or a postponed/cancelled status) at settlement time = no result per the rules in section 2.
+**Settlement job (Tuesday, before pulling new fixtures)** — re-run the *same* `eventsround.php` call(s) used to pull that game week (no separate per-fixture lookup needed — confirmed `eventsround.php` returns updated `intHomeScore`/`intAwayScore` and `strStatus: "FT"` once matches finish, from the same request shape used to pull). Match returned events back to stored fixtures by `idEvent`. A fixture still `"NS"` (or a postponed/cancelled status) at settlement time = no result per the rules in section 2.
 
 **Season string**: TheSportsDB wants `"2026-2027"` format — the year football's August kickoff falls in, and the year after.

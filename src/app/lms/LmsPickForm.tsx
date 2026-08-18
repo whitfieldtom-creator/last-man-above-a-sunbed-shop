@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Fixture = { id: number; homeTeam: string; awayTeam: string; kickoffTime: string };
 type LeagueGroup = { leagueId: number; leagueName: string; fixtures: Fixture[] };
@@ -24,10 +25,10 @@ export default function LmsPickForm({
   const [submitting, setSubmitting] = useState(false);
 
   const usedTeamSet = new Set(usedTeams);
-  const deadlinePassed = new Date() > new Date(deadlineIso);
+  const readOnly = new Date() > new Date(deadlineIso);
 
   function pickTeam(leagueId: number, fixtureId: number, team: string) {
-    if (usedTeamSet.has(team) || deadlinePassed) return;
+    if (usedTeamSet.has(team) || readOnly) return;
     setSelections((prev) => ({ ...prev, [leagueId]: { fixtureId, teamPicked: team } }));
   }
 
@@ -53,7 +54,7 @@ export default function LmsPickForm({
 
   return (
     <div className="stack">
-      {deadlinePassed && <p className="text-danger">Pick deadline has passed for this week.</p>}
+      {readOnly && <p className="eyebrow">Picks locked — here&apos;s what you submitted</p>}
       {leagueGroups.length === 0 && <p className="text-muted">No fixtures this week.</p>}
 
       {leagueGroups.map((group) => {
@@ -71,7 +72,7 @@ export default function LmsPickForm({
                   <div key={fixture.id} className="row">
                     <button
                       type="button"
-                      disabled={homeUsed || deadlinePassed}
+                      disabled={homeUsed || readOnly}
                       onClick={() => pickTeam(group.leagueId, fixture.id, fixture.homeTeam)}
                       className={`btn pick-btn${homeSelected ? " pick-btn--selected" : ""}${homeUsed ? " pick-btn--used" : ""}`}
                       style={{ flex: 1 }}
@@ -81,7 +82,7 @@ export default function LmsPickForm({
                     <span className="text-faint">v</span>
                     <button
                       type="button"
-                      disabled={awayUsed || deadlinePassed}
+                      disabled={awayUsed || readOnly}
                       onClick={() => pickTeam(group.leagueId, fixture.id, fixture.awayTeam)}
                       className={`btn pick-btn${awaySelected ? " pick-btn--selected" : ""}${awayUsed ? " pick-btn--used" : ""}`}
                       style={{ flex: 1 }}
@@ -98,9 +99,15 @@ export default function LmsPickForm({
 
       {error && <p className="text-danger">{error}</p>}
 
-      <button type="button" className="btn btn-primary" onClick={submit} disabled={submitting || deadlinePassed}>
-        {submitting ? "Saving…" : "Next"}
-      </button>
+      {readOnly ? (
+        <Link href="/predictor" className="btn btn-primary">
+          Next
+        </Link>
+      ) : (
+        <button type="button" className="btn btn-primary" onClick={submit} disabled={submitting}>
+          {submitting ? "Saving…" : "Next"}
+        </button>
+      )}
     </div>
   );
 }

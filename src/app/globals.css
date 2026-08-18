@@ -164,6 +164,8 @@ p {
 
 /* Buttons */
 .btn {
+  display: inline-block;
+  text-align: center;
   font-family: var(--font-body);
   font-size: 0.95rem;
   background: var(--input-bg);

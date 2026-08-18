@@ -27,7 +27,7 @@ export default function PlayerPicker({ players }: { players: { id: number; name:
       setError("Wrong passcode — try again.");
       return;
     }
-    router.push("/lms");
+    router.push("/menu");
   }
 
   if (!selected) {
