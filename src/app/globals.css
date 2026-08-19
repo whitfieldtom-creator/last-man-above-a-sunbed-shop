@@ -310,3 +310,43 @@ p {
   justify-content: space-between;
   gap: 0.75rem;
 }
+
+/* FAQ accordion */
+.faq-item {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  margin: 0.5rem 0;
+  overflow: hidden;
+}
+.faq-item summary {
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--text-heading);
+  list-style: none;
+}
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+.faq-item summary::before {
+  content: "+";
+  display: inline-block;
+  width: 1rem;
+  color: var(--accent-gold);
+  font-family: var(--font-mono);
+}
+.faq-item[open] summary::before {
+  content: "–";
+}
+.faq-answer {
+  padding: 0 1rem 1rem;
+  color: var(--text-primary);
+}
+.faq-answer p {
+  margin: 0.5rem 0;
+}
+.faq-answer p:first-child {
+  margin-top: 0;
+}

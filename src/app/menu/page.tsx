@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentGameWeek, getCurrentPlayer } from "@/lib/session";
+import Faq from "./Faq";
 
 // Screen 2: branch — "Make picks" (or "View my picks" once locked) / "View
 // leaderboard". See last-man-standing-plan.md section 3.
@@ -27,6 +28,7 @@ export default async function MenuPage() {
           View leaderboard
         </Link>
       </div>
+      <Faq />
     </main>
   );
 }
