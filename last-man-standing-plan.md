@@ -1,4 +1,4 @@
-# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v15 — build-ready)
+# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v16 — build-ready)
 
 Two games, one app, sharing the same weekly fixture pull:
 1. **Last Man Standing (LMS)** — pick one team to win each week; wrong/no pick eliminates you; last one standing wins, then it resets.
@@ -52,7 +52,7 @@ Why this works cleanly now: the window is only 4 days (Fri–Mon), settled the v
 
 ## 4. Seed data
 Players (seeded directly into the DB, no admin UI needed for this):
-`Tom, Goods, Kev, Rich, Ed, Gary`
+`Tom, Goods, Kev, Rich, Ed, Gary, Martin`
 
 Each player has a passcode (plaintext distributed by whoever runs the pool, hashed at rest) entered after picking their name on screen 1 — a lightweight gate, not real authentication. See section 8.
 
@@ -70,7 +70,8 @@ runs                                              -- Last Man Standing runs only
   winners: many-to-many with players               -- usually one, joint on a shared final-week elimination (section 6)
 
 run_entries                                        -- one row per player per run, tracks lives
-  id, run_id, player_id, lives_remaining (starts at 4), eliminated, eliminated_at_week_id (nullable)
+  id, run_id, player_id, lives_remaining (starts at 4), eliminated, eliminated_at_week_id (nullable),
+  lms_points_awarded (nullable)                     -- null until the run ends, then this player's payout (section 6a)
 
 game_weeks
   id, run_id, week_number, window_start (Fri), window_end (Mon),
@@ -100,6 +101,17 @@ used_teams                                        -- derive from lms_picks: ever
 Each player gets **4 lives per run**. Every wrong, postponed, or missing pick costs one life (a week with multiple league picks can cost multiple lives — one per miss, not capped at one per week). Lives floor at 0 rather than going negative; a player isn't eliminated for merely reaching 0 lives, only when they then miss again while already at 0 — i.e. their 5th miss ends their run. Screen 5 shows each surviving player's lives remaining.
 
 **Ties**: if every player still in the run is eliminated in the same week (all hit their 5th miss together), they're declared **joint winners** of that run rather than the run continuing with no survivors.
+
+## 6a. LMS points pot
+A separate scoring layer on top of the survival rule above — doesn't change who gets eliminated or how, just adds a points payout once a run finishes.
+
+Each run has its own pot, starting at 4 points and growing by 4 for every game week that passes (settled or skipped — a thin week with no fixtures still adds its 4 points). The pot resets to 0 when a new run starts.
+
+When the run ends, the final pot is split 60% / 25% / 15% among whoever survived longest / 2nd-longest / 3rd-longest, ranked by elimination week (the winner(s) rank highest, then most-recently-eliminated, and so on).
+
+**Ties**: players tied for a rank absorb as many consecutive payout tiers as there are people tied, pool those percentages, and split the pooled amount evenly — e.g. two joint winners split 60%+25%=85% between them (42.5% each), and whoever's next takes the remaining 15% as "3rd" (there's no "2nd"). Same logic applies further down: two players tied for 2nd/3rd split 25%+15%=40% between them, while a lone winner still keeps 60% outright.
+
+Players who don't place in the top 3 (or the equivalent tied group) get 0 from this run. Screen 5 shows a season-long "LMS Points" table — a running total of each player's payouts added up across every run that's finished so far, alongside (not replacing) the current run's live/eliminated status panel.
 
 **Used teams**: once picked, a team is unavailable again for the rest of the run — regardless of whether that pick turned out right or wrong. A wrong pick that survives on a life still burns the team, so nobody can just keep re-picking the same favourite and treating lives as free insurance.
 

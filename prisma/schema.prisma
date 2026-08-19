@@ -83,6 +83,10 @@ model RunEntry {
   livesRemaining     Int      @default(4)
   eliminated         Boolean  @default(false)
   eliminatedAtWeekId Int?
+  // Null while the run is still in progress; set to the player's share of
+  // the run's points pot (0 if they didn't place) once the run ends —
+  // see section 6a (points pot).
+  lmsPointsAwarded   Float?
 
   run              Run       @relation(fields: [runId], references: [id])
   player           Player    @relation(fields: [playerId], references: [id])

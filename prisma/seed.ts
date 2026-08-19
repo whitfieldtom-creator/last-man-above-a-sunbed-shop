@@ -5,7 +5,7 @@ import { hashPasscode } from "../src/lib/passcode";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const PLAYERS = ["Tom", "Goods", "Kev", "Rich", "Ed", "Gary"];
+const PLAYERS = ["Tom", "Goods", "Kev", "Rich", "Ed", "Gary", "Martin"];
 const LEAGUES = ["Premier League", "Championship", "League One", "League Two"];
 
 // JSON map of name -> plaintext passcode, e.g. {"Tom":"some-word"}.
