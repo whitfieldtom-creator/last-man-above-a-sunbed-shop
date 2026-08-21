@@ -1,0 +1,22 @@
+name: Friday deadline report
+
+on:
+  schedule:
+    # 12:05 UK time can be either of these two UTC instants depending on
+    # GMT/BST — the endpoint itself works out which one (if either) is
+    # actually due, so both triggers are safe to fire every week.
+    - cron: "5 12 * * 5" # 12:05 UTC — matches 12:05 UK during GMT (winter)
+    - cron: "5 11 * * 5" # 11:05 UTC — matches 12:05 UK during BST (summer)
+  workflow_dispatch: {}
+
+jobs:
+  friday-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call friday-report endpoint
+        run: |
+          curl --fail-with-body -X POST "${APP_URL}/api/cron/friday-report" \
+            -H "Authorization: Bearer ${CRON_SECRET}"
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

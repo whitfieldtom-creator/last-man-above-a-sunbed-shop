@@ -62,6 +62,10 @@ model GameWeek {
   windowEnd    DateTime
   pickDeadline DateTime
   status       GameWeekStatus @default(open)
+  // Set once the Friday deadline report email has been sent for this week —
+  // see section 6a. Guards against a double-send from the two DST-covering
+  // cron triggers both landing in the match window in the same run.
+  reportSentAt DateTime?
 
   run               Run                @relation(fields: [runId], references: [id])
   fixtures          Fixture[]

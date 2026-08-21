@@ -1,4 +1,4 @@
-# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v16 — build-ready)
+# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v17 — build-ready)
 
 Two games, one app, sharing the same weekly fixture pull:
 1. **Last Man Standing (LMS)** — pick one team to win each week; wrong/no pick eliminates you; last one standing wins, then it resets.
@@ -44,11 +44,12 @@ Why this works cleanly now: the window is only 4 days (Fri–Mon), settled the v
      - **`locked`** (Friday 12:00 → the following Tuesday's settle+pull job): button reads **"View my picks"** — same screens, but read-only: shows exactly what the player already submitted (their LMS team per league, their Predictor scores), no inputs, no submit action. This gives players visibility into their own picks right up until the fixtures get replaced by the next pull, rather than losing access the moment the deadline passes.
    - **View leaderboard** is always available, regardless of pick-window state.
 3. **Last Man Standing pick** *(reached via "Make picks" or "View my picks")* — one pick required per league that has fixtures that week (so up to four picks in a full week, fewer if a league has no fixtures/is a thin week per section 2); click a team name in each league to pick them as winner; teams the player has already used this run are greyed out and unclickable per league; clicking "Next" submits all of that week's picks together, then continues to step 4. In read-only mode, the player's own pick is shown highlighted with no other interaction available.
-   - Skipped entirely for eliminated players — they go straight to step 4
-4. **Score Predictor** *(reached via "Make picks" or "View my picks", after step 3)* — the same 5 randomly-selected fixtures for every player; enter a predicted score for each; clicking "Next" submits and returns to the branch/leaderboard. In read-only mode, shows the player's already-submitted scores with no inputs.
-5. **Leaderboard** — reachable directly from step 2, or automatically after finishing picks in steps 3-4. Two separate panels:
+   - Skipped entirely for eliminated players — they go straight to step 4 (redirected past the LMS screen rather than shown a disabled version of it; confirmed as the intended behaviour)
+4. **Score Predictor** *(reached via "Make picks" or "View my picks", after step 3)* — the same 5 randomly-selected fixtures for every player; enter a predicted score for each; clicking "Next" submits and returns to the branch/leaderboard. In read-only mode, shows the player's already-submitted scores with no inputs. Stays fully playable for eliminated players — no elimination check on this path.
+5. **Leaderboard** — reachable directly from step 2, or automatically after finishing picks in steps 3-4. Three panels:
    - LMS: current run status, each surviving player's lives remaining, past run winners
    - Predictor: season-long points table (1 pt correct result, 3 pts exact score — total, not stacked)
+   - LMS Points (season): running total of each player's points-pot payouts across every finished run (section 6a)
 
 ## 4. Seed data
 Players (seeded directly into the DB, no admin UI needed for this):
@@ -56,11 +57,11 @@ Players (seeded directly into the DB, no admin UI needed for this):
 
 Each player has a passcode (plaintext distributed by whoever runs the pool, hashed at rest) entered after picking their name on screen 1 — a lightweight gate, not real authentication. See section 8.
 
-## 5. Data model (draft v5)
+## 5. Data model (draft v6)
 
 ```
 players
-  id, name, created_at, passcode_hash (nullable)  -- seeded, six rows to start
+  id, name, created_at, passcode_hash (nullable)  -- seeded, seven rows to start
 
 leagues
   id, name                                        -- Premier League, Championship, League One, League Two
@@ -75,7 +76,8 @@ run_entries                                        -- one row per player per run
 
 game_weeks
   id, run_id, week_number, window_start (Fri), window_end (Mon),
-  pick_deadline (Fri 12:00 UK), status (open | locked | settled | skipped)
+  pick_deadline (Fri 12:00 UK), status (open | locked | settled | skipped),
+  report_sent_at (nullable)                         -- set once the Friday deadline report email goes out (section 6b)
 
 fixtures
   id, game_week_id, league_id, home_team, away_team, kickoff_time,
@@ -115,6 +117,16 @@ Players who don't place in the top 3 (or the equivalent tied group) get 0 from t
 
 **Used teams**: once picked, a team is unavailable again for the rest of the run — regardless of whether that pick turned out right or wrong. A wrong pick that survives on a life still burns the team, so nobody can just keep re-picking the same favourite and treating lives as free insurance.
 
+## 6b. Friday deadline report (email)
+Once picks lock (Friday 12:00 UK), send a report email **5 minutes later (12:05 UK)** showing everyone's picks for that game week.
+
+- **Recipient**: hardcoded to `whitfield.tom@gmail.com` for now, via the `REPORT_RECIPIENT_EMAIL` env var — a single config value, not scattered through the code, so it's a one-line change to support multiple recipients later.
+- **Sender service**: **Resend**, via a plain HTTP call (`src/lib/email.ts`) — no SDK dependency. Sends from Resend's shared sandbox address (`onboarding@resend.dev`, configurable via `EMAIL_FROM`) unless a verified custom domain is set up later.
+- **Content/format**: plain text (not HTML), tab-separated so it pastes cleanly into a spreadsheet (`src/lib/report.ts`). Two tables:
+  - LAST MAN STANDING: player name, then their pick for each league that had fixtures that week (blank if that league had none, or if the player didn't submit)
+  - SCORE PREDICTOR: player name, then their predicted score for each of the 5 fixtures
+- **Timezone handling (built)**: rather than re-deriving UK local time at send time, this leans on `pickDeadline` already being computed DST-safely when the game week is created (`ukNoonUtc()` in `weeklyJob.ts`, which asks `Intl.DateTimeFormat` for the actual `Europe/London` wall-clock hour). `.github/workflows/friday-report.yml` fires the job at **both** `12:05 UTC` (matches 12:05 UK during GMT) and `11:05 UTC` (matches 12:05 UK during BST) every Friday. The `/api/cron/friday-report` endpoint looks for a game week whose stored `pickDeadline` fell within the last 20 minutes — only the trigger that actually lines up with that week's real deadline ever finds a match, so it self-corrects across the DST changeover with no separate timezone check needed in the job itself. `report_sent_at` (section 5) guards against a double-send if both triggers somehow matched in the same run.
+
 ## 7. Scoring — Score Predictor
 - 1 point: correct result (home win / away win / draw) but wrong scoreline
 - 3 points: exact scoreline (total — not stacked on top of the 1)
@@ -133,7 +145,8 @@ The Predictor table runs continuously through the whole season, including play-o
 - Frontend + backend: **Next.js (App Router)** — one deployable service, no separate React/Express split
 - DB: **Postgres**, provisioned as a Railway plugin (not Supabase/Neon/SQLite)
 - Fixture data: **TheSportsDB v1 API** (free tier — switched from API-Football, whose free plan doesn't cover the current season)
-- Scheduler: GitHub Actions weekly cron (**Tuesday**, see section 1) hitting a backend settle+pull endpoint
+- Email: **Resend** free tier, plain HTTP call (section 6b)
+- Scheduler: GitHub Actions weekly cron (**Tuesday**, see section 1, plus **Friday** for the deadline report, section 6b) hitting backend endpoints
 - Hosting: **Railway** (hobby plan, ~$5/mo) — always-on, no sleep/cold-start, deploy via git push
 
 ## 11. Fixture data — TheSportsDB v1 integration detail (verified against the live API)
