@@ -5,7 +5,7 @@ export const REPORT_RECIPIENT_EMAIL = process.env.REPORT_RECIPIENT_EMAIL || "whi
 
 const EMAIL_FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
 
-export async function sendEmail({ to, subject, text }: { to: string; subject: string; text: string }) {
+export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("RESEND_API_KEY is not set");
 
@@ -15,7 +15,7 @@ export async function sendEmail({ to, subject, text }: { to: string; subject: st
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, text }),
+    body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
   });
 
   if (!response.ok) {

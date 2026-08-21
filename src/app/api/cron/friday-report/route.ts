@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   try {
     const report = await buildFridayReportEmail(dueGameWeek.id);
     if (report) {
-      await sendEmail({ to: REPORT_RECIPIENT_EMAIL, subject: report.subject, text: report.text });
+      await sendEmail({ to: REPORT_RECIPIENT_EMAIL, subject: report.subject, html: report.html });
     }
     await prisma.gameWeek.update({ where: { id: dueGameWeek.id }, data: { reportSentAt: now } });
     return NextResponse.json({ ok: true, sent: report !== null, gameWeekId: dueGameWeek.id });
