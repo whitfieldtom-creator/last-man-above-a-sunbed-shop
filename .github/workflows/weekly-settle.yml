@@ -2,8 +2,10 @@ name: Weekly settle and pull
 
 on:
   schedule:
-    # 07:00 UTC every Tuesday (07:00 GMT / 08:00 BST — always still Tuesday morning UK time)
-    - cron: "0 7 * * 2"
+    # 06:00 UTC every Tuesday — targets 6am UK time. Not time-critical (unlike
+    # the Friday report), so a plain fixed UTC time is fine: this lands at
+    # exactly 6am during GMT and 7am during BST, no DST handling needed.
+    - cron: "0 6 * * 2"
   workflow_dispatch: {}
 
 jobs:
