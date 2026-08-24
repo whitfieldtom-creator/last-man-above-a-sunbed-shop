@@ -1,8 +1,5 @@
 import { prisma } from "@/lib/db";
 
-// See last-man-standing-plan.md section 6.
-export const STARTING_LIVES = 4;
-
 // See section 6a — the run's points pot grows by this many points per game
 // week that passes (settled or skipped, doesn't matter), and pays out 60% /
 // 25% / 15% to whoever survived longest / 2nd-longest / 3rd-longest once
@@ -79,9 +76,9 @@ async function awardLmsPayouts(runId: number) {
 }
 
 // Settles one game week: scores each LMS pick against its fixture result,
-// applies the lives rule (each wrong/missing pick costs a life, a wrong
-// pick while already at 0 lives eliminates), and closes out the run if
-// it's down to one survivor or everyone still in it goes out together.
+// applies the per-league lives rule (a wrong/missing/postponed pick loses
+// that league's life only — see section 6), and closes out the run if it's
+// down to one survivor or everyone still in it goes out together.
 export async function settleLmsGameWeek(gameWeekId: number) {
   const gameWeek = await prisma.gameWeek.findUniqueOrThrow({
     where: { id: gameWeekId },
@@ -91,55 +88,73 @@ export async function settleLmsGameWeek(gameWeekId: number) {
     },
   });
 
-  const leagueIdsThisWeek = [...new Set(gameWeek.fixtures.map((f) => f.leagueId))];
+  const leagueIdsThisWeek = new Set(gameWeek.fixtures.map((f) => f.leagueId));
 
-  const picksByPlayer = new Map<number, typeof gameWeek.lmsPicks>();
-  for (const pick of gameWeek.lmsPicks) {
-    const list = picksByPlayer.get(pick.playerId) ?? [];
-    list.push(pick);
-    picksByPlayer.set(pick.playerId, list);
-  }
-
+  const pickByPlayerAndLeague = new Map<string, (typeof gameWeek.lmsPicks)[number]>();
   for (const pick of gameWeek.lmsPicks) {
     const correct = isPickCorrect(pick.teamPicked, pick.fixture);
     if (pick.correct !== correct) {
       await prisma.lmsPick.update({ where: { id: pick.id }, data: { correct } });
     }
+    pickByPlayerAndLeague.set(`${pick.playerId}:${pick.leagueId}`, pick);
   }
 
   const activeEntries = await prisma.runEntry.findMany({
     where: { runId: gameWeek.runId, eliminated: false },
   });
 
+  const aliveLeagueLives = await prisma.playerLeagueLife.findMany({
+    where: { runId: gameWeek.runId, alive: true, playerId: { in: activeEntries.map((e) => e.playerId) } },
+  });
+  const aliveLeaguesByPlayer = new Map<number, typeof aliveLeagueLives>();
+  for (const life of aliveLeagueLives) {
+    const list = aliveLeaguesByPlayer.get(life.playerId) ?? [];
+    list.push(life);
+    aliveLeaguesByPlayer.set(life.playerId, list);
+  }
+
   const eliminatedThisWeek: number[] = [];
 
   for (const entry of activeEntries) {
-    const picks = picksByPlayer.get(entry.playerId) ?? [];
-    const pickedLeagueIds = new Set(picks.map((p) => p.leagueId));
-    const missingPicks = leagueIdsThisWeek.filter((id) => !pickedLeagueIds.has(id)).length;
-    const wrongPicks = picks.filter((p) => !isPickCorrect(p.teamPicked, p.fixture)).length;
-    const totalMisses = missingPicks + wrongPicks;
+    const aliveLeagues = aliveLeaguesByPlayer.get(entry.playerId) ?? [];
 
-    let lives = entry.livesRemaining;
-    let eliminated = false;
-    for (let i = 0; i < totalMisses; i++) {
-      if (lives === 0) {
-        eliminated = true;
-        break;
-      }
-      lives -= 1;
+    // Thin-week wipeout (section 2): every league they're still alive in has
+    // no fixtures this week, so there's no possible pick to make — eliminate
+    // outright rather than letting them coast with no penalty.
+    const hasAnyPlayableLeague = aliveLeagues.some((life) => leagueIdsThisWeek.has(life.leagueId));
+    if (aliveLeagues.length > 0 && !hasAnyPlayableLeague) {
+      await prisma.playerLeagueLife.updateMany({
+        where: { runId: gameWeek.runId, playerId: entry.playerId, alive: true },
+        data: { alive: false },
+      });
+      await prisma.runEntry.update({
+        where: { id: entry.id },
+        data: { eliminated: true, eliminatedAtWeekId: gameWeek.id },
+      });
+      eliminatedThisWeek.push(entry.playerId);
+      continue;
     }
 
-    await prisma.runEntry.update({
-      where: { id: entry.id },
-      data: {
-        livesRemaining: lives,
-        eliminated,
-        eliminatedAtWeekId: eliminated ? gameWeek.id : null,
-      },
-    });
+    for (const life of aliveLeagues) {
+      if (!leagueIdsThisWeek.has(life.leagueId)) continue; // thin week for this one league — no pick expected, no penalty
 
-    if (eliminated) eliminatedThisWeek.push(entry.playerId);
+      const pick = pickByPlayerAndLeague.get(`${entry.playerId}:${life.leagueId}`);
+      const survived = pick ? isPickCorrect(pick.teamPicked, pick.fixture) : false;
+      if (!survived) {
+        await prisma.playerLeagueLife.update({ where: { id: life.id }, data: { alive: false } });
+      }
+    }
+
+    const remainingAlive = await prisma.playerLeagueLife.count({
+      where: { runId: gameWeek.runId, playerId: entry.playerId, alive: true },
+    });
+    if (remainingAlive === 0) {
+      await prisma.runEntry.update({
+        where: { id: entry.id },
+        data: { eliminated: true, eliminatedAtWeekId: gameWeek.id },
+      });
+      eliminatedThisWeek.push(entry.playerId);
+    }
   }
 
   await prisma.gameWeek.update({ where: { id: gameWeek.id }, data: { status: "settled" } });

@@ -18,19 +18,20 @@ model Player {
   // Lightweight per-player gate, not real auth (see plan section 8).
   passcodeHash String?
 
-  wonRuns        Run[]           @relation("RunWinners")
-  runEntries     RunEntry[]
-  lmsPicks       LmsPick[]
-  predictorPicks PredictorPick[]
-  usedTeams      UsedTeam[]
+  wonRuns           Run[]              @relation("RunWinners")
+  runEntries        RunEntry[]
+  lmsPicks          LmsPick[]
+  predictorPicks    PredictorPick[]
+  playerLeagueLives PlayerLeagueLife[]
 }
 
 model League {
   id   Int    @id @default(autoincrement())
   name String @unique
 
-  fixtures Fixture[]
-  lmsPicks LmsPick[]
+  fixtures          Fixture[]
+  lmsPicks          LmsPick[]
+  playerLeagueLives PlayerLeagueLife[]
 }
 
 model Run {
@@ -41,10 +42,10 @@ model Run {
 
   // Normally one player, but a shared final-week elimination (everyone still
   // in the run loses their last life the same week) makes them joint winners.
-  winners    Player[]   @relation("RunWinners")
-  gameWeeks  GameWeek[]
-  usedTeams  UsedTeam[]
-  runEntries RunEntry[]
+  winners           Player[]           @relation("RunWinners")
+  gameWeeks         GameWeek[]
+  runEntries        RunEntry[]
+  playerLeagueLives PlayerLeagueLife[]
 }
 
 enum GameWeekStatus {
@@ -76,15 +77,16 @@ model GameWeek {
   @@unique([runId, weekNumber])
 }
 
-// One row per player per LMS run — tracks their lives for that run.
-// STARTING_LIVES (see src/lib/lms.ts) lives per run; each wrong or postponed
-// pick costs one life down to a floor of 0. A wrong/postponed pick while
-// already at 0 lives is what eliminates the player (see section 6 of the plan).
+// One row per player per LMS run — tracks whether they're fully out of the
+// run overall. The source of truth for *which* lives they have left is
+// PlayerLeagueLife (one life per league, see below); `eliminated` here just
+// mirrors "all four of that player's PlayerLeagueLife rows are alive=false",
+// kept as its own column so run-ending/payout logic (awardLmsPayouts) doesn't
+// need to re-derive it from four rows every time. See section 6.
 model RunEntry {
   id                 Int      @id @default(autoincrement())
   runId              Int
   playerId           Int
-  livesRemaining     Int      @default(4)
   eliminated         Boolean  @default(false)
   eliminatedAtWeekId Int?
   // Null while the run is still in progress; set to the player's share of
@@ -97,6 +99,25 @@ model RunEntry {
   eliminatedAtWeek GameWeek? @relation(fields: [eliminatedAtWeekId], references: [id])
 
   @@unique([runId, playerId])
+}
+
+// One row per player per league per run — the actual per-league life (see
+// section 6). A wrong/missing/postponed pick in that league sets alive to
+// false, which removes that league from the player's pick screen for the
+// rest of the run. A player is fully out (RunEntry.eliminated) once all four
+// of their rows here are alive=false.
+model PlayerLeagueLife {
+  id       Int     @id @default(autoincrement())
+  runId    Int
+  playerId Int
+  leagueId Int
+  alive    Boolean @default(true)
+
+  run    Run    @relation(fields: [runId], references: [id])
+  player Player @relation(fields: [playerId], references: [id])
+  league League @relation(fields: [leagueId], references: [id])
+
+  @@unique([runId, playerId, leagueId])
 }
 
 enum FixtureResult {
@@ -164,16 +185,4 @@ model PredictorPick {
   predictorFixture PredictorFixture @relation(fields: [predictorFixtureId], references: [id])
 
   @@unique([playerId, predictorFixtureId])
-}
-
-model UsedTeam {
-  id       Int    @id @default(autoincrement())
-  playerId Int
-  runId    Int
-  teamName String
-
-  player Player @relation(fields: [playerId], references: [id])
-  run    Run    @relation(fields: [runId], references: [id])
-
-  @@unique([playerId, runId, teamName])
 }

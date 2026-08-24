@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { pullFixturesForGameWeek, selectPredictorFixtures } from "@/lib/fixtures";
-import { settleLmsGameWeek, STARTING_LIVES } from "@/lib/lms";
+import { settleLmsGameWeek } from "@/lib/lms";
 import { settlePredictorGameWeek } from "@/lib/predictor";
 
 // A Fri-Mon window is 4 days, pulled every Tuesday (7-day cadence) — by the
@@ -42,9 +42,15 @@ async function getOrCreateActiveRun() {
   const lastRun = await prisma.run.findFirst({ orderBy: { runNumber: "desc" } });
   const run = await prisma.run.create({ data: { runNumber: (lastRun?.runNumber ?? 0) + 1 } });
 
-  const players = await prisma.player.findMany();
+  const [players, leagues] = await Promise.all([prisma.player.findMany(), prisma.league.findMany()]);
   await prisma.runEntry.createMany({
-    data: players.map((player) => ({ runId: run.id, playerId: player.id, livesRemaining: STARTING_LIVES })),
+    data: players.map((player) => ({ runId: run.id, playerId: player.id })),
+  });
+  // One life per league per player (section 6) — everyone starts alive in all four.
+  await prisma.playerLeagueLife.createMany({
+    data: players.flatMap((player) =>
+      leagues.map((league) => ({ runId: run.id, playerId: player.id, leagueId: league.id }))
+    ),
   });
 
   return run;
@@ -72,7 +78,6 @@ async function getOrCreateGameWeek(runId: number, windowStart: Date, windowEnd: 
 // week or two (settles everything that's become due, oldest first).
 export async function runWeeklySettleAndPull(referenceDate = new Date()) {
   const settledWeekIds: number[] = [];
-  const skippedWeekIds: number[] = [];
 
   const runForSettlement = await getOrCreateActiveRun();
 
@@ -84,17 +89,14 @@ export async function runWeeklySettleAndPull(referenceDate = new Date()) {
   for (const week of duePastWeeks) {
     await pullFixturesForGameWeek(week.id); // re-sync final scores before settling
 
-    // LMS has its own zero-picks safety net (missing pick screens shouldn't
-    // cost anyone a life), but Predictor has no such risk — scoring a week
-    // with no Predictor picks is a harmless no-op, so it always runs.
-    const pickCount = await prisma.lmsPick.count({ where: { gameWeekId: week.id } });
-    if (pickCount === 0) {
-      await prisma.gameWeek.update({ where: { id: week.id }, data: { status: "skipped" } });
-      skippedWeekIds.push(week.id);
-    } else {
-      await settleLmsGameWeek(week.id);
-      settledWeekIds.push(week.id);
-    }
+    // A week with zero LMS picks is no longer automatically a technical
+    // failure to skip — under the per-league rules it can legitimately
+    // happen (e.g. every surviving player's only remaining life is in a
+    // league that isn't playing this week). settleLmsGameWeek handles that
+    // correctly on its own (per-league misses, thin-week no-penalty, and
+    // the thin-week wipeout exception), so it always runs.
+    await settleLmsGameWeek(week.id);
+    settledWeekIds.push(week.id);
 
     await settlePredictorGameWeek(week.id);
   }
@@ -116,7 +118,6 @@ export async function runWeeklySettleAndPull(referenceDate = new Date()) {
 
   return {
     settledWeekIds,
-    skippedPastWeekIds: skippedWeekIds,
     pulledGameWeekId: gameWeek.id,
     pulledFixtureCount: fixtureCount,
   };

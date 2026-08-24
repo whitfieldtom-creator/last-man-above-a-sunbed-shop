@@ -1,7 +1,7 @@
-# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v17 — build-ready)
+# Last Man Above A Sunbed Shop + Score Predictor — Project Plan (Draft v18 — build-ready)
 
 Two games, one app, sharing the same weekly fixture pull:
-1. **Last Man Standing (LMS)** — pick one team to win each week; wrong/no pick eliminates you; last one standing wins, then it resets.
+1. **Last Man Standing (LMS)** — each player has one life *per league* (4 lives total: Premier League, Championship, League One, League Two). Pick a winner each week in every league you still have a life in; a wrong/no pick loses that league's life only, not the others. Last player with any life remaining wins overall, then everyone resets across all four leagues.
 2. **Score Predictor** — every player predicts the exact score for the same 5 randomly-selected fixtures each week; running points table, ongoing (no reset).
 
 ## 1. Weekly cycle
@@ -29,10 +29,10 @@ Why this works cleanly now: the window is only 4 days (Fri–Mon), settled the v
 ## 2. Postponed fixtures & thin weeks
 
 - **Postponed/delayed fixture, no score by settlement time**:
-  - LMS: costs a life the same as a wrong pick (see section 6) — postponements aren't forgiven
+  - LMS: if a player's pick in a given league has no result, they lose their life **in that league only** — same as a wrong pick, postponements aren't forgiven. Their lives in other leagues are unaffected.
   - Predictor: that fixture scores 0 points; doesn't affect their other 4 picks
 - **Thin weeks (international breaks, cup weeks) — the two games are handled differently**:
-  - **LMS**: doesn't need all four leagues. Use whichever leagues have fixtures that window — e.g. if only League One and League Two are playing, the LMS pick screen just shows those two leagues. Only skip LMS for the week if *zero* leagues have any fixtures at all.
+  - **LMS**: a player only picks in leagues where they still have a life AND that league has fixtures that week. If a league they still have a life in has no fixtures that week, they simply don't pick in it that week — no penalty, no life lost, it just doesn't come up. **Exception**: if *every* league a player still has a life in has no fixtures that week (all their remaining leagues are simultaneously thin — e.g. a full international break while they're already out of the others), they're eliminated entirely, since there's no possible pick for them to make. Only skip LMS pulling for the week app-wide if *zero* leagues have any fixtures at all.
   - **Predictor**: skip the week only if there are fewer than 5 fixtures in total across all four leagues combined (not enough to fill the 5 random picks).
 
 ## 3. App flow
@@ -43,11 +43,11 @@ Why this works cleanly now: the window is only 4 days (Fri–Mon), settled the v
      - **`open`** (before Friday 12:00 deadline): button reads **"Make picks"** — full editable flow, as below
      - **`locked`** (Friday 12:00 → the following Tuesday's settle+pull job): button reads **"View my picks"** — same screens, but read-only: shows exactly what the player already submitted (their LMS team per league, their Predictor scores), no inputs, no submit action. This gives players visibility into their own picks right up until the fixtures get replaced by the next pull, rather than losing access the moment the deadline passes.
    - **View leaderboard** is always available, regardless of pick-window state.
-3. **Last Man Standing pick** *(reached via "Make picks" or "View my picks")* — one pick required per league that has fixtures that week (so up to four picks in a full week, fewer if a league has no fixtures/is a thin week per section 2); click a team name in each league to pick them as winner; teams the player has already used this run are greyed out and unclickable per league; clicking "Next" submits all of that week's picks together, then continues to step 4. In read-only mode, the player's own pick is shown highlighted with no other interaction available.
-   - Skipped entirely for eliminated players — they go straight to step 4 (redirected past the LMS screen rather than shown a disabled version of it; confirmed as the intended behaviour)
+3. **Last Man Standing pick** *(reached via "Make picks" or "View my picks")* — only shows leagues where the player still has a life remaining; a league the player's already lost their life in disappears from this screen entirely (not just greyed — they're done with it for this run). Within each shown league, one pick required if it has fixtures that week; click a team name to pick them as winner; teams the player has already used *in that league* this run are greyed out and unclickable; clicking "Next" submits all of that week's picks together, then continues to step 4. In read-only mode, the player's own pick(s) are shown highlighted with no other interaction available.
+   - Skipped entirely for players with zero lives left in any league — they go straight to step 4 (redirected past the LMS screen rather than shown a disabled version of it; confirmed as the intended behaviour)
 4. **Score Predictor** *(reached via "Make picks" or "View my picks", after step 3)* — the same 5 randomly-selected fixtures for every player; enter a predicted score for each; clicking "Next" submits and returns to the branch/leaderboard. In read-only mode, shows the player's already-submitted scores with no inputs. Stays fully playable for eliminated players — no elimination check on this path.
 5. **Leaderboard** — reachable directly from step 2, or automatically after finishing picks in steps 3-4. Three panels:
-   - LMS: current run status, each surviving player's lives remaining, past run winners
+   - LMS: current run status — each player's per-league life status (alive/dead per league, not a single lives count), past run winners
    - Predictor: season-long points table (1 pt correct result, 3 pts exact score — total, not stacked)
    - LMS Points (season): running total of each player's points-pot payouts across every finished run (section 6a)
 
@@ -57,7 +57,7 @@ Players (seeded directly into the DB, no admin UI needed for this):
 
 Each player has a passcode (plaintext distributed by whoever runs the pool, hashed at rest) entered after picking their name on screen 1 — a lightweight gate, not real authentication. See section 8.
 
-## 5. Data model (draft v6)
+## 5. Data model (draft v7)
 
 ```
 players
@@ -70,9 +70,16 @@ runs                                              -- Last Man Standing runs only
   id, run_number, started_at, ended_at
   winners: many-to-many with players               -- usually one, joint on a shared final-week elimination (section 6)
 
-run_entries                                        -- one row per player per run, tracks lives
-  id, run_id, player_id, lives_remaining (starts at 4), eliminated, eliminated_at_week_id (nullable),
+run_entries                                        -- one row per player per run — tracks whether they're FULLY out
+  id, run_id, player_id, eliminated, eliminated_at_week_id (nullable),
   lms_points_awarded (nullable)                     -- null until the run ends, then this player's payout (section 6a)
+  -- `eliminated` mirrors "all four of this player's player_league_lives rows are alive=false" —
+  -- kept as its own column so run-ending/payout logic doesn't need to re-derive it every time.
+
+player_league_lives                               -- one row per player per league per run — the actual per-league life
+  id, run_id, player_id, league_id, alive (bool, default true)
+  -- a wrong/missing/postponed pick in that league sets alive=false, removing that league
+  -- from the player's pick screen for the rest of the run (section 6)
 
 game_weeks
   id, run_id, week_number, window_start (Fri), window_end (Mon),
@@ -94,36 +101,38 @@ lms_picks
 predictor_picks
   id, player_id, predictor_fixture_id,
   predicted_home_score, predicted_away_score, points_awarded (nullable)
-
-used_teams                                        -- derive from lms_picks: every team picked this run,
-  player_id, run_id, team_name                     -- regardless of correct/incorrect (section 6)
 ```
 
-## 6. Last Man Standing — survival rule (lives)
-Each player gets **4 lives per run**. Every wrong, postponed, or missing pick costs one life (a week with multiple league picks can cost multiple lives — one per miss, not capped at one per week). Lives floor at 0 rather than going negative; a player isn't eliminated for merely reaching 0 lives, only when they then miss again while already at 0 — i.e. their 5th miss ends their run. Screen 5 shows each surviving player's lives remaining.
+Team lock (section 6) is derived live from `lms_picks` history filtered by league — every team a player has picked in a given league this run, regardless of whether that pick survived, is unavailable again in that league. No separate table needed for this (an earlier `used_teams` table existed only on paper and was never actually used by the app — removed).
 
-**Ties**: if every player still in the run is eliminated in the same week (all hit their 5th miss together), they're declared **joint winners** of that run rather than the run continuing with no survivors.
+## 6. Last Man Standing — survival rule (per-league lives)
+Each player has **one life per league** (4 total), tracked independently:
+
+- Each week, a player picks a winner in every league they still have a life in (that has fixtures that week — see thin-week handling in section 2)
+- A correct pick keeps that league's life; a wrong, missing, or postponed-with-no-result pick **loses that life for that league only**
+- Losing a league's life removes that league from the player's pick screen for the rest of the run — they keep playing whichever other leagues they're still alive in
+- Different players will naturally end up "active" in different combinations of leagues over time, since eliminations happen independently per league per player
+- A player is **fully out of the run** once they've lost all 4 lives (or hit the thin-week exception in section 2)
+- **Winning/reset**: the run ends when only one player has any life remaining (in any league); that player is logged as the run's winner, and then **all four leagues reset together** for everyone — every player starts the new run with all 4 lives restored and used-team locks cleared
 
 ## 6a. LMS points pot
 A separate scoring layer on top of the survival rule above — doesn't change who gets eliminated or how, just adds a points payout once a run finishes.
 
 Each run has its own pot, starting at 4 points and growing by 4 for every game week that passes (settled or skipped — a thin week with no fixtures still adds its 4 points). The pot resets to 0 when a new run starts.
 
-When the run ends, the final pot is split 60% / 25% / 15% among whoever survived longest / 2nd-longest / 3rd-longest, ranked by elimination week (the winner(s) rank highest, then most-recently-eliminated, and so on).
+When the run ends, the final pot is split 60% / 25% / 15% among whoever survived longest / 2nd-longest / 3rd-longest. "Survived longest" is ranked by `run_entries.eliminated_at_week_id` — the winner(s) rank highest, then whoever was most recently fully eliminated (all 4 leagues gone), and so on. A player who's lost 3 of their 4 lives but isn't fully out yet still only counts once they're actually fully eliminated — there's no partial credit for how many leagues they'd already lost.
 
-**Ties**: players tied for a rank absorb as many consecutive payout tiers as there are people tied, pool those percentages, and split the pooled amount evenly — e.g. two joint winners split 60%+25%=85% between them (42.5% each), and whoever's next takes the remaining 15% as "3rd" (there's no "2nd"). Same logic applies further down: two players tied for 2nd/3rd split 25%+15%=40% between them, while a lone winner still keeps 60% outright.
+**Ties**: players tied for a rank (i.e. fully eliminated in the same week, or joint run winners) absorb as many consecutive payout tiers as there are people tied, pool those percentages, and split the pooled amount evenly — e.g. two joint winners split 60%+25%=85% between them (42.5% each), and whoever's next takes the remaining 15% as "3rd" (there's no "2nd"). Same logic applies further down: two players tied for 2nd/3rd split 25%+15%=40% between them, while a lone winner still keeps 60% outright.
 
-Players who don't place in the top 3 (or the equivalent tied group) get 0 from this run. Screen 5 shows a season-long "LMS Points" table — a running total of each player's payouts added up across every run that's finished so far, alongside (not replacing) the current run's live/eliminated status panel.
-
-**Used teams**: once picked, a team is unavailable again for the rest of the run — regardless of whether that pick turned out right or wrong. A wrong pick that survives on a life still burns the team, so nobody can just keep re-picking the same favourite and treating lives as free insurance.
+Players who don't place in the top 3 (or the equivalent tied group) get 0 from this run. Screen 5 shows a season-long "LMS Points" table — a running total of each player's payouts added up across every run that's finished so far, alongside (not replacing) the current run's per-league status panel.
 
 ## 6b. Friday deadline report (email)
 Once picks lock (Friday 12:00 UK), send a report email **5 minutes later (12:05 UK)** showing everyone's picks for that game week.
 
 - **Recipient**: hardcoded to `whitfield.tom@gmail.com` for now, via the `REPORT_RECIPIENT_EMAIL` env var — a single config value, not scattered through the code, so it's a one-line change to support multiple recipients later.
 - **Sender service**: **Resend**, via a plain HTTP call (`src/lib/email.ts`) — no SDK dependency. Sends from Resend's shared sandbox address (`onboarding@resend.dev`, configurable via `EMAIL_FROM`) unless a verified custom domain is set up later.
-- **Content/format**: HTML tables (`src/lib/report.ts`) — renders properly in the email client, and pastes into Excel/Sheets/Word as columns when copied, same as the tab-separated text this replaced. Minimal styling: borders and a header row only, no colours/branding. Two separate tables:
-  - **Last Man Standing**: fixed column order — Player, Premier League, Championship, League One, League Two — one row per player, showing their picked team per league (blank/dash if that league had no fixtures that week, or if the player didn't submit)
+- **Content/format**: HTML tables (`src/lib/report.ts`) — renders properly in the email client, and pastes into Excel/Sheets/Word as columns when copied. Minimal styling: borders and a header row only, no colours/branding. Two separate tables:
+  - **Last Man Standing**: fixed column order — Player, Premier League, Championship, League One, League Two — one row per player, showing their picked team per league (blank/dash if that league had no fixtures that week, if the player didn't submit, or if they'd already lost that league's life)
   - **Score Predictor**: Player, then one column per that week's 5 fixtures, one row per player, showing their predicted score
 - **Timezone handling (built)**: rather than re-deriving UK local time at send time, this leans on `pickDeadline` already being computed DST-safely when the game week is created (`ukNoonUtc()` in `weeklyJob.ts`, which asks `Intl.DateTimeFormat` for the actual `Europe/London` wall-clock hour). `.github/workflows/friday-report.yml` fires the job at **both** `12:05 UTC` (matches 12:05 UK during GMT) and `11:05 UTC` (matches 12:05 UK during BST) every Friday. The `/api/cron/friday-report` endpoint looks for a game week whose stored `pickDeadline` fell within the last 50 minutes — only the trigger that actually lines up with that week's real deadline ever finds a match, so it self-corrects across the DST changeover with no separate timezone check needed in the job itself. `report_sent_at` (section 5) guards against a double-send if both triggers somehow matched in the same run. The window is 50 minutes rather than a tight ~5 — GitHub Actions scheduled runs are best-effort and can lag well past their nominal time (the first live run confirmed this: it fired, got a 200, but landed outside an initial 20-minute window and silently sent nothing), so 50 minutes gives real headroom while staying under the 60-minute gap to the other DST trigger.
 

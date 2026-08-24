@@ -25,17 +25,28 @@ export async function POST(request: NextRequest) {
   if (!runEntry) return NextResponse.json({ error: "Not in the current run" }, { status: 403 });
   if (runEntry.eliminated) return NextResponse.json({ error: "Already eliminated" }, { status: 403 });
 
+  const aliveLeagueIds = new Set(
+    (await prisma.playerLeagueLife.findMany({ where: { runId: gameWeek.runId, playerId, alive: true } })).map(
+      (l) => l.leagueId
+    )
+  );
+
   const fixtureIds = picks.map((p) => p.fixtureId);
   const fixtures = await prisma.fixture.findMany({
     where: { id: { in: fixtureIds }, gameWeekId: gameWeek.id },
   });
   const fixtureById = new Map(fixtures.map((f) => [f.id, f]));
 
+  // Team lock is per league (section 6) — used in one league doesn't block reuse in another.
   const usedTeamPicks = await prisma.lmsPick.findMany({
     where: { playerId, gameWeek: { runId: gameWeek.runId }, NOT: { gameWeekId: gameWeek.id } },
-    select: { teamPicked: true },
+    select: { leagueId: true, teamPicked: true },
   });
-  const usedTeams = new Set(usedTeamPicks.map((p) => p.teamPicked));
+  const usedTeamsByLeague = new Map<number, Set<string>>();
+  for (const p of usedTeamPicks) {
+    if (!usedTeamsByLeague.has(p.leagueId)) usedTeamsByLeague.set(p.leagueId, new Set());
+    usedTeamsByLeague.get(p.leagueId)!.add(p.teamPicked);
+  }
 
   const seenLeagueIds = new Set<number>();
 
@@ -44,11 +55,14 @@ export async function POST(request: NextRequest) {
     if (!fixture) {
       return NextResponse.json({ error: `Fixture ${pick.fixtureId} not in this game week` }, { status: 400 });
     }
+    if (!aliveLeagueIds.has(fixture.leagueId)) {
+      return NextResponse.json({ error: "You've already lost your life in that league" }, { status: 403 });
+    }
     if (pick.teamPicked !== fixture.homeTeam && pick.teamPicked !== fixture.awayTeam) {
       return NextResponse.json({ error: `${pick.teamPicked} isn't playing in that fixture` }, { status: 400 });
     }
-    if (usedTeams.has(pick.teamPicked)) {
-      return NextResponse.json({ error: `${pick.teamPicked} has already been used this run` }, { status: 400 });
+    if (usedTeamsByLeague.get(fixture.leagueId)?.has(pick.teamPicked)) {
+      return NextResponse.json({ error: `${pick.teamPicked} has already been used in that league this run` }, { status: 400 });
     }
     if (seenLeagueIds.has(fixture.leagueId)) {
       return NextResponse.json({ error: "Only one pick allowed per league" }, { status: 400 });

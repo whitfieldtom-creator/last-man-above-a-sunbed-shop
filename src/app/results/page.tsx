@@ -13,10 +13,26 @@ export default async function ResultsPage() {
     include: {
       runEntries: {
         include: { player: true },
-        orderBy: [{ eliminated: "asc" }, { livesRemaining: "desc" }],
+        orderBy: [{ eliminated: "asc" }, { player: { name: "asc" } }],
       },
     },
   });
+
+  // Per-league life status (section 6) — fixed league order via league id,
+  // same order every player is seeded into (see prisma/seed.ts).
+  const leagueLives = activeRun
+    ? await prisma.playerLeagueLife.findMany({
+        where: { runId: activeRun.id },
+        include: { league: true },
+        orderBy: { league: { id: "asc" } },
+      })
+    : [];
+  const leagueLivesByPlayerId = new Map<number, typeof leagueLives>();
+  for (const life of leagueLives) {
+    const list = leagueLivesByPlayerId.get(life.playerId) ?? [];
+    list.push(life);
+    leagueLivesByPlayerId.set(life.playerId, list);
+  }
 
   const pastRuns = await prisma.run.findMany({
     where: { endedAt: { not: null } },
@@ -68,13 +84,17 @@ export default async function ResultsPage() {
               {activeRun.runEntries.map((entry) => (
                 <li key={entry.id} className="list-row">
                   <span>{entry.player.name}</span>
-                  {entry.eliminated ? (
-                    <span className="chip chip--eliminated">Eliminated</span>
-                  ) : (
-                    <span className="chip chip--alive">
-                      {entry.livesRemaining} {entry.livesRemaining === 1 ? "life" : "lives"}
-                    </span>
-                  )}
+                  <span className="row" style={{ gap: "0.35rem" }}>
+                    {(leagueLivesByPlayerId.get(entry.playerId) ?? []).map((life) => (
+                      <span
+                        key={life.leagueId}
+                        className={`chip ${life.alive ? "chip--alive" : "chip--eliminated"}`}
+                        title={life.league.name}
+                      >
+                        {life.league.name}
+                      </span>
+                    ))}
+                  </span>
                 </li>
               ))}
             </ul>

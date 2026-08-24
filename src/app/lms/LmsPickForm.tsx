@@ -11,12 +11,12 @@ type Selection = { fixtureId: number; teamPicked: string };
 export default function LmsPickForm({
   leagueGroups,
   existingPicks,
-  usedTeams,
+  usedTeamsByLeague,
   deadlineIso,
 }: {
   leagueGroups: LeagueGroup[];
   existingPicks: Record<number, Selection>;
-  usedTeams: string[];
+  usedTeamsByLeague: Record<number, string[]>;
   deadlineIso: string;
 }) {
   const router = useRouter();
@@ -24,11 +24,10 @@ export default function LmsPickForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const usedTeamSet = new Set(usedTeams);
   const readOnly = new Date() > new Date(deadlineIso);
 
   function pickTeam(leagueId: number, fixtureId: number, team: string) {
-    if (usedTeamSet.has(team) || readOnly) return;
+    if ((usedTeamsByLeague[leagueId] ?? []).includes(team) || readOnly) return;
     setSelections((prev) => ({ ...prev, [leagueId]: { fixtureId, teamPicked: team } }));
   }
 
@@ -59,6 +58,7 @@ export default function LmsPickForm({
 
       {leagueGroups.map((group) => {
         const selected = selections[group.leagueId];
+        const usedTeamSet = new Set(usedTeamsByLeague[group.leagueId] ?? []);
         return (
           <section key={group.leagueId} className="panel">
             <p className="eyebrow">{group.leagueName}</p>
