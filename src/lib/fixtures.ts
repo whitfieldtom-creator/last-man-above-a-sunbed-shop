@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { getNextRound, getRoundFixtures, type SportsDbEvent } from "@/lib/sportsdb";
+import { getNextRound, getRoundFixtures, lookupEvent, type SportsDbEvent } from "@/lib/sportsdb";
 
 // See last-man-standing-plan.md section 11.
 const LEAGUE_SPORTSDB_IDS: Record<string, string> = {
@@ -88,6 +88,33 @@ export async function pullFixturesForGameWeek(gameWeekId: number): Promise<numbe
   }
 
   return count;
+}
+
+// Re-syncs results for fixtures already stored in `gameWeekId`, one lookup
+// per fixture by its external event id. Used at settlement time instead of
+// pullFixturesForGameWeek's round-based re-fetch, which silently finds
+// nothing once a league's "next round" pointer has moved past the target
+// week (see section 1/11 — this is what caused a whole week to settle as
+// all-pending, wrongly wiping every player's picks as misses).
+export async function refreshFixtureResults(gameWeekId: number): Promise<void> {
+  const fixtures = await prisma.fixture.findMany({ where: { gameWeekId } });
+
+  for (const fixture of fixtures) {
+    // Self-throttle: the shared free-tier key's 30/min limit is easy to
+    // blow through firing one lookup per fixture back-to-back (a 45-fixture
+    // week did exactly that). sportsDbGet still retries on a 429 from
+    // someone else's traffic, but pacing our own requests avoids
+    // self-inflicting one.
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+
+    const event = await lookupEvent(fixture.externalId);
+    if (!event) continue;
+
+    const { result, homeScore, awayScore } = mapEventStatus(event);
+    if (result === "pending") continue; // nothing new to record yet
+
+    await prisma.fixture.update({ where: { id: fixture.id }, data: { result, homeScore, awayScore } });
+  }
 }
 
 // Randomly picks 5 of the game week's fixtures for the Score Predictor.

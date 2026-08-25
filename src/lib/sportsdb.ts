@@ -32,13 +32,13 @@ async function sportsDbGet(path: string, params: Record<string, string>): Promis
   const url = new URL(`${SPORTSDB_BASE}/${sportsDbKey()}/${path}`);
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
 
-  const maxAttempts = 4;
+  const maxAttempts = 6;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const res = await fetch(url);
     if (res.ok) return res.json();
 
     if (res.status === 429 && attempt < maxAttempts) {
-      await sleep(2 ** attempt * 1000); // 2s, 4s, 8s
+      await sleep(2 ** attempt * 1000); // 2s, 4s, 8s, 16s, 32s
       continue;
     }
     throw new Error(`TheSportsDB request failed: ${res.status} ${res.statusText}`);
@@ -57,4 +57,17 @@ export async function getNextRound(leagueId: string): Promise<number | null> {
 export async function getRoundFixtures(leagueId: string, round: number, season: string): Promise<SportsDbEvent[]> {
   const { events } = await sportsDbGet("eventsround.php", { id: leagueId, r: String(round), s: season });
   return events ?? [];
+}
+
+// Looks up a single stored fixture by its external event id — used to
+// refresh results at settlement time. Unlike eventsround.php, this doesn't
+// depend on the league's "next round" pointer still covering the target
+// week, so it stays reliable even if settlement runs later than expected
+// (see the incident this was added for: a stale windowEnd meant a week
+// wasn't settled until several rounds after it actually finished, by which
+// point re-fetching "the next round" no longer returned its fixtures at all).
+export async function lookupEvent(idEvent: string): Promise<SportsDbEvent | null> {
+  const data = await sportsDbGet("lookupevent.php", { id: idEvent });
+  const events = (data as { events?: SportsDbEvent[] | null; event?: SportsDbEvent[] | null }).events ?? (data as { event?: SportsDbEvent[] | null }).event;
+  return events?.[0] ?? null;
 }

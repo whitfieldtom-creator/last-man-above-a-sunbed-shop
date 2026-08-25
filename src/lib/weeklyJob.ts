@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { pullFixturesForGameWeek, selectPredictorFixtures } from "@/lib/fixtures";
+import { pullFixturesForGameWeek, refreshFixtureResults, selectPredictorFixtures } from "@/lib/fixtures";
 import { settleLmsGameWeek } from "@/lib/lms";
 import { settlePredictorGameWeek } from "@/lib/predictor";
 
@@ -87,7 +87,7 @@ export async function runWeeklySettleAndPull(referenceDate = new Date()) {
   });
 
   for (const week of duePastWeeks) {
-    await pullFixturesForGameWeek(week.id); // re-sync final scores before settling
+    await refreshFixtureResults(week.id); // re-sync final scores before settling, by fixture id (see fixtures.ts)
 
     // A week with zero LMS picks is no longer automatically a technical
     // failure to skip — under the per-league rules it can legitimately
