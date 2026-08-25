@@ -84,7 +84,7 @@ export default async function ResultsPage() {
               {activeRun.runEntries.map((entry) => (
                 <li key={entry.id} className="list-row">
                   <span>{entry.player.name}</span>
-                  <span className="row" style={{ gap: "0.35rem" }}>
+                  <span className="chip-group">
                     {(leagueLivesByPlayerId.get(entry.playerId) ?? []).map((life) => (
                       <span
                         key={life.leagueId}

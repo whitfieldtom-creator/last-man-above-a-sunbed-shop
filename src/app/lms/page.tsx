@@ -83,7 +83,7 @@ export default async function LmsPickPage() {
     <main>
       <p className="eyebrow">Screen 3 · Week {gameWeek.weekNumber}</p>
       <h2>Last Man Standing</h2>
-      <p className="row">
+      <p className="chip-group">
         <span>{player.name}</span>
         {leagueLives.map((life) => (
           <span key={life.leagueId} className={`chip ${life.alive ? "chip--alive" : "chip--eliminated"}`}>

@@ -286,6 +286,14 @@ p {
   align-items: center;
   gap: 0.6rem;
 }
+/* Like .row, but wraps — for a variable-length run of chips (e.g. one per
+   league) that can be wider than the viewport on mobile. */
+.chip-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
 .text-muted {
   color: var(--text-muted);
 }
