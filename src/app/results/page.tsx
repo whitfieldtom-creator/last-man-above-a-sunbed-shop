@@ -20,19 +20,18 @@ export default async function ResultsPage() {
 
   // Per-league life status (section 6) — fixed league order via league id,
   // same order every player is seeded into (see prisma/seed.ts).
+  const leagues = await prisma.league.findMany({ orderBy: { id: "asc" } });
   const leagueLives = activeRun
-    ? await prisma.playerLeagueLife.findMany({
-        where: { runId: activeRun.id },
-        include: { league: true },
-        orderBy: { league: { id: "asc" } },
-      })
+    ? await prisma.playerLeagueLife.findMany({ where: { runId: activeRun.id } })
     : [];
-  const leagueLivesByPlayerId = new Map<number, typeof leagueLives>();
-  for (const life of leagueLives) {
-    const list = leagueLivesByPlayerId.get(life.playerId) ?? [];
-    list.push(life);
-    leagueLivesByPlayerId.set(life.playerId, list);
-  }
+  const aliveByPlayerAndLeague = new Map(leagueLives.map((l) => [`${l.playerId}:${l.leagueId}`, l.alive]));
+
+  const LEAGUE_ABBREVIATIONS: Record<string, string> = {
+    "Premier League": "PL",
+    Championship: "CH",
+    "League One": "L1",
+    "League Two": "L2",
+  };
 
   const pastRuns = await prisma.run.findMany({
     where: { endedAt: { not: null } },
@@ -80,24 +79,38 @@ export default async function ResultsPage() {
             <p className="text-faint" style={{ marginBottom: "0.5rem" }}>
               Run #{activeRun.runNumber}
             </p>
-            <ul className="list">
-              {activeRun.runEntries.map((entry) => (
-                <li key={entry.id} className="list-row">
-                  <span>{entry.player.name}</span>
-                  <span className="chip-group">
-                    {(leagueLivesByPlayerId.get(entry.playerId) ?? []).map((life) => (
-                      <span
-                        key={life.leagueId}
-                        className={`chip ${life.alive ? "chip--alive" : "chip--eliminated"}`}
-                        title={life.league.name}
-                      >
-                        {life.league.name}
-                      </span>
+            <div className="results-table-wrap">
+              <table className="results-table">
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    {leagues.map((league) => (
+                      <th key={league.id} title={league.name}>
+                        {LEAGUE_ABBREVIATIONS[league.name] ?? league.name}
+                      </th>
                     ))}
-                  </span>
-                </li>
-              ))}
-            </ul>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeRun.runEntries.map((entry) => (
+                    <tr key={entry.id}>
+                      <td className={entry.eliminated ? "text-muted" : undefined}>{entry.player.name}</td>
+                      {leagues.map((league) => {
+                        const alive = aliveByPlayerAndLeague.get(`${entry.playerId}:${league.id}`) ?? false;
+                        return (
+                          <td
+                            key={league.id}
+                            className={alive ? "results-table__status--alive" : "results-table__status--out"}
+                          >
+                            {alive ? "Alive" : "Out"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

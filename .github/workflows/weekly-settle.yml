@@ -6,6 +6,15 @@ on:
     # the Friday report), so a plain fixed UTC time is fine: this lands at
     # exactly 6am during GMT and 7am during BST, no DST handling needed.
     - cron: "0 6 * * 2"
+    # Same-day fallback, not a DST accommodation — GitHub Actions schedules
+    # are best-effort and can be dropped outright, not just delayed (this
+    # actually happened: the 06:00 trigger silently never fired one week,
+    # confirmed via the Actions API showing zero runs, no platform incident,
+    # workflow state "active"). runWeeklySettleAndPull is already idempotent
+    # and safe to call more than once, so if 06:00 lands, this is a no-op;
+    # if 06:00 gets dropped, this catches it the same day instead of the
+    # week silently going unsettled until someone notices.
+    - cron: "0 12 * * 2"
   workflow_dispatch: {}
 
 jobs:
