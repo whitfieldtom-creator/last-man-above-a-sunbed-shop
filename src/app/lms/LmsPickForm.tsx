@@ -23,12 +23,14 @@ export default function LmsPickForm({
   const [selections, setSelections] = useState<Record<number, Selection>>(existingPicks);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showStokeWarning, setShowStokeWarning] = useState(false);
 
   const readOnly = new Date() > new Date(deadlineIso);
 
   function pickTeam(leagueId: number, fixtureId: number, team: string) {
     if ((usedTeamsByLeague[leagueId] ?? []).includes(team) || readOnly) return;
     setSelections((prev) => ({ ...prev, [leagueId]: { fixtureId, teamPicked: team } }));
+    if (team === "Stoke City") setShowStokeWarning(true);
   }
 
   async function submit() {
@@ -107,6 +109,19 @@ export default function LmsPickForm({
         <button type="button" className="btn btn-primary" onClick={submit} disabled={submitting}>
           {submitting ? "Saving…" : "Next"}
         </button>
+      )}
+
+      {showStokeWarning && (
+        <div className="modal-overlay" onClick={() => setShowStokeWarning(false)}>
+          <div className="modal-box modal-box--danger" onClick={(e) => e.stopPropagation()}>
+            <p className="text-danger" style={{ fontWeight: 700 }}>
+              WARNING — YOU ARE CHOOSING STOKE CITY TO WIN — IS THIS AN ERROR?
+            </p>
+            <button type="button" className="btn" onClick={() => setShowStokeWarning(false)}>
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

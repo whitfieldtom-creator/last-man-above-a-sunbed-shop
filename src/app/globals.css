@@ -356,6 +356,31 @@ p {
   text-decoration: line-through;
 }
 
+/* Modal (Stoke City warning — a small easter egg, see LmsPickForm) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 100;
+}
+.modal-box {
+  background: var(--panel-bg);
+  border-radius: 8px;
+  padding: 1.25rem;
+  max-width: 360px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.modal-box--danger {
+  border: 2px solid var(--danger);
+}
+
 /* FAQ accordion */
 .faq-item {
   background: var(--panel-bg);
