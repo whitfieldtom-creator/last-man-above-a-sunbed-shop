@@ -97,7 +97,10 @@ export async function pullFixturesForGameWeek(gameWeekId: number): Promise<numbe
 // week (see section 1/11 — this is what caused a whole week to settle as
 // all-pending, wrongly wiping every player's picks as misses).
 export async function refreshFixtureResults(gameWeekId: number): Promise<void> {
-  const fixtures = await prisma.fixture.findMany({ where: { gameWeekId } });
+  // Only fixtures still pending need a lookup — this also makes a retry
+  // after a partial failure (e.g. a rate-limited request further down the
+  // list) cheap, since it won't re-fetch fixtures that already resolved.
+  const fixtures = await prisma.fixture.findMany({ where: { gameWeekId, result: "pending" } });
 
   for (const fixture of fixtures) {
     // Self-throttle: the shared free-tier key's 30/min limit is easy to
