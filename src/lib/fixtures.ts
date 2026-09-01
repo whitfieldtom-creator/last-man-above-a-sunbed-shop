@@ -53,13 +53,16 @@ export async function pullFixturesForGameWeek(gameWeekId: number): Promise<numbe
     const sportsDbId = LEAGUE_SPORTSDB_IDS[league.name];
     if (!sportsDbId) continue;
 
+    // Self-throttle between leagues — see the matching note on
+    // refreshFixtureResults. 3 requests per league fired back-to-back
+    // across all 4 leagues has hit the shared key's rate limit before.
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
     const nextRound = await getNextRound(sportsDbId);
     if (nextRound === null) continue;
 
-    const [roundEvents, nextRoundEvents] = await Promise.all([
-      getRoundFixtures(sportsDbId, nextRound, season),
-      getRoundFixtures(sportsDbId, nextRound + 1, season),
-    ]);
+    const roundEvents = await getRoundFixtures(sportsDbId, nextRound, season);
+    const nextRoundEvents = await getRoundFixtures(sportsDbId, nextRound + 1, season);
 
     const events = [...roundEvents, ...nextRoundEvents].filter((event) => {
       const eventDate = new Date(event.dateEvent);
