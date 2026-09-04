@@ -3,10 +3,19 @@ name: Friday deadline report
 on:
   schedule:
     # 12:05 UK time can be either of these two UTC instants depending on
-    # GMT/BST — the endpoint itself works out which one (if either) is
-    # actually due, so both triggers are safe to fire every week.
+    # GMT/BST. Plus same-day catch-up triggers through the afternoon/evening
+    # — GitHub Actions scheduled runs for this repo have been observed
+    # firing up to ~10 hours late, and some weeks not firing at all, so the
+    # endpoint (which has no time-window restriction, just "deadline passed
+    # and not yet reported") gets several chances a day instead of depending
+    # on one. Every extra trigger here is a safe no-op once the report's
+    # actually gone out (see friday-report/route.ts).
     - cron: "5 12 * * 5" # 12:05 UTC — matches 12:05 UK during GMT (winter)
     - cron: "5 11 * * 5" # 11:05 UTC — matches 12:05 UK during BST (summer)
+    - cron: "5 14 * * 5"
+    - cron: "5 17 * * 5"
+    - cron: "5 20 * * 5"
+    - cron: "5 23 * * 5"
   workflow_dispatch: {}
 
 jobs:
