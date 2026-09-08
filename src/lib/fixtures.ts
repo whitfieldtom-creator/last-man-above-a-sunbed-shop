@@ -53,10 +53,22 @@ export async function pullFixturesForGameWeek(gameWeekId: number): Promise<numbe
     const sportsDbId = LEAGUE_SPORTSDB_IDS[league.name];
     if (!sportsDbId) continue;
 
+    // Skip a league that already has fixtures for this game week. This
+    // makes a retry after a partial failure (see refreshFixtureResults for
+    // the matching case) only hit the API for whatever's actually missing,
+    // instead of re-fetching all 4 leagues and re-tripping the same rate
+    // limit that caused the failure in the first place.
+    const existingCount = await prisma.fixture.count({ where: { gameWeekId: gameWeek.id, leagueId: league.id } });
+    if (existingCount > 0) {
+      count += existingCount;
+      continue;
+    }
+
     // Self-throttle between leagues — see the matching note on
-    // refreshFixtureResults. 3 requests per league fired back-to-back
-    // across all 4 leagues has hit the shared key's rate limit before.
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // refreshFixtureResults. 2 seconds wasn't enough (League Two, always
+    // last to run, has hit the shared key's rate limit twice at this
+    // pacing); 4 seconds gives more headroom.
+    await new Promise((resolve) => setTimeout(resolve, 4000));
 
     const nextRound = await getNextRound(sportsDbId);
     if (nextRound === null) continue;
