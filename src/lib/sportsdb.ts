@@ -48,10 +48,21 @@ async function sportsDbGet(path: string, params: Record<string, string>): Promis
 
 // The single next unplayed fixture for a league, used only to read its
 // round number — not reliable as a source of fixture lists (see section 11).
+//
+// An empty response here is treated by the caller as "this league has no
+// fixtures this week" (a legitimate thin week, see section 2) — but a live
+// run showed the API can also return a 200 with an empty events list as a
+// transient blip for a league that, moments later, has data again. That's
+// indistinguishable from a real thin week unless we double-check, so retry
+// a couple of times on an empty result before accepting it.
 export async function getNextRound(leagueId: string): Promise<number | null> {
-  const { events } = await sportsDbGet("eventsnextleague.php", { id: leagueId });
-  const round = events?.[0]?.intRound;
-  return round ? Number(round) : null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const { events } = await sportsDbGet("eventsnextleague.php", { id: leagueId });
+    const round = events?.[0]?.intRound;
+    if (round) return Number(round);
+    if (attempt < 3) await sleep(3000);
+  }
+  return null;
 }
 
 export async function getRoundFixtures(leagueId: string, round: number, season: string): Promise<SportsDbEvent[]> {
