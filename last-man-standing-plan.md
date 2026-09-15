@@ -162,7 +162,9 @@ The Predictor table runs continuously through the whole season, including play-o
 ## 11. Fixture data — TheSportsDB v1 integration detail (verified against the live API)
 Sticking with **v1** (free) rather than v2 (Premium-only, ~€9/month) — verified working for all four leagues, no need to pay.
 
-**Auth**: the free tier has no personal key — everyone free uses the same shared key `123`. Our actual call volume (~12 requests once a week) is tiny next to the 30 requests/minute free rate limit.
+**Auth**: the free tier has no personal key — everyone free uses the same shared key `123`. Our actual call volume (~12 requests once a week) is tiny next to the 30 requests/minute free rate limit — but the shared key's *reliability* isn't ours to control, and has caused three separate live incidents (a stale round pointer returning nothing for an overdue settlement, 429 exhaustion aborting a pull mid-week, and a silent empty response for one league that resolved fine moments later). Client-side retries/pacing/idempotent-skip mitigate each as it's found, but don't fix the underlying shared-resource unreliability.
+
+**Backlog**: a personal TheSportsDB API key (Patreon-supporter tier, ~€3-9/month) would give a dedicated rate limit and likely eliminate this whole class of issue. Deferred for now — current mitigations are good enough to catch and manually recover from failures when they happen, and our volume is low enough that it isn't urgent. Revisit if these incidents keep recurring or become too disruptive to manually patch around.
 
 **League IDs** (confirmed working, verified live for all four):
 - Premier League: `4328`
