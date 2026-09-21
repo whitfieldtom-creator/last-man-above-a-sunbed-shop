@@ -125,7 +125,7 @@ export async function settleLmsGameWeek(gameWeekId: number) {
     if (aliveLeagues.length > 0 && !hasAnyPlayableLeague) {
       await prisma.playerLeagueLife.updateMany({
         where: { runId: gameWeek.runId, playerId: entry.playerId, alive: true },
-        data: { alive: false },
+        data: { alive: false, lostAtWeekId: gameWeek.id },
       });
       await prisma.runEntry.update({
         where: { id: entry.id },
@@ -141,7 +141,7 @@ export async function settleLmsGameWeek(gameWeekId: number) {
       const pick = pickByPlayerAndLeague.get(`${entry.playerId}:${life.leagueId}`);
       const survived = pick ? isPickCorrect(pick.teamPicked, pick.fixture) : false;
       if (!survived) {
-        await prisma.playerLeagueLife.update({ where: { id: life.id }, data: { alive: false } });
+        await prisma.playerLeagueLife.update({ where: { id: life.id }, data: { alive: false, lostAtWeekId: gameWeek.id } });
       }
     }
 

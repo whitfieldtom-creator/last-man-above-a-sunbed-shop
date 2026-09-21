@@ -112,6 +112,9 @@ model PlayerLeagueLife {
   playerId Int
   leagueId Int
   alive    Boolean @default(true)
+  // The game week in which this life was lost (null while still alive) —
+  // what the ticker reads to announce last week's losses.
+  lostAtWeekId Int?
 
   run    Run    @relation(fields: [runId], references: [id])
   player Player @relation(fields: [playerId], references: [id])

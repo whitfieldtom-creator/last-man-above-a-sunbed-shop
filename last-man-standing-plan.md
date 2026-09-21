@@ -51,6 +51,8 @@ Why this works cleanly now: the window is only 4 days (Fri–Mon), settled the v
    - Predictor: season-long points table (1 pt correct result, 3 pts exact score — total, not stacked)
    - LMS Points (season): running total of each player's points-pot payouts across every finished run (section 6a)
 
+   **Ticker and crown** (site-wide vidiprinter strip, and the home screen): during the *first week of a run* the ticker announces the previous run's winner(s) (e.g. "TOM WINS RUN 1!") and says nothing about eliminations. In later weeks it shows the most recently settled week's news — players fully eliminated first ("KEV ELIMINATED"), then league lives lost by players still in ("GOODS OUT OF LEAGUE ONE"), or "NOBODY LOST A LIFE LAST WEEK". The reigning champion(s) — the last finished run's winner(s) — get a crown next to their name on the "Choose your player" screen until the next run finishes.
+
 ## 4. Seed data
 Players (seeded directly into the DB, no admin UI needed for this):
 `Tom, Goods, Kev, Rich, Ed, Gary, Martin`
@@ -77,9 +79,10 @@ run_entries                                        -- one row per player per run
   -- kept as its own column so run-ending/payout logic doesn't need to re-derive it every time.
 
 player_league_lives                               -- one row per player per league per run — the actual per-league life
-  id, run_id, player_id, league_id, alive (bool, default true)
+  id, run_id, player_id, league_id, alive (bool, default true), lost_at_week_id (nullable)
   -- a wrong/missing/postponed pick in that league sets alive=false, removing that league
   -- from the player's pick screen for the rest of the run (section 6)
+  -- lost_at_week_id records which game week it was lost in — the ticker reads it (section 3)
 
 game_weeks
   id, run_id, week_number, window_start (Fri), window_end (Mon),
