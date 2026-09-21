@@ -118,6 +118,7 @@ Each player has **one life per league** (4 total), tracked independently:
 - A correct pick keeps that league's life; a wrong, missing, or postponed-with-no-result pick **loses that life for that league only**
 - Losing a league's life removes that league from the player's pick screen for the rest of the run — they keep playing whichever other leagues they're still alive in
 - Different players will naturally end up "active" in different combinations of leagues over time, since eliminations happen independently per league per player
+- **Running out of teams**: if every team playing in a league this week is one the player has already used in that league this run, they have nothing they can pick there, so they lose that league's life like any other missing pick. There is deliberately **no extra-life purchase** in this game (that mechanic, paid for with tokens, exists only in the separate LASTMAN2 game) — this was considered and the decision was to leave it as a plain loss. If that leaves a player with nothing pickable in any league, the pick screen says so and just links on to the Score Predictor rather than dead-ending on an error.
 - A player is **fully out of the run** once they've lost all 4 lives
 - **Winning/reset**: the run ends when only one player has any life remaining (in any league); that player is logged as the run's winner, and then **all four leagues reset together** for everyone — every player starts the new run with all 4 lives restored and used-team locks cleared
 

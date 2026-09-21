@@ -27,6 +27,15 @@ export default function LmsPickForm({
 
   const readOnly = new Date() > new Date(deadlineIso);
 
+  // True when there's no team the player is allowed to pick anywhere (every
+  // team playing in their remaining leagues has already been used this run).
+  // They can't submit anything, and — per the rules — will lose those lives
+  // at settlement, but they still need a way on to the Score Predictor.
+  const nothingPickable = leagueGroups.every((group) => {
+    const used = new Set(usedTeamsByLeague[group.leagueId] ?? []);
+    return group.fixtures.every((f) => used.has(f.homeTeam) && used.has(f.awayTeam));
+  });
+
   function pickTeam(leagueId: number, fixtureId: number, team: string) {
     if ((usedTeamsByLeague[leagueId] ?? []).includes(team) || readOnly) return;
     setSelections((prev) => ({ ...prev, [leagueId]: { fixtureId, teamPicked: team } }));
@@ -60,6 +69,12 @@ export default function LmsPickForm({
         <p className="text-muted">
           None of the leagues you&apos;re still alive in have games this week, so there&apos;s nothing for you to pick.
           You won&apos;t lose a life — you can still play the Score Predictor.
+        </p>
+      )}
+      {leagueGroups.length > 0 && nothingPickable && !readOnly && (
+        <p className="text-danger">
+          You&apos;ve already used every team playing in the leagues you have left, so there&apos;s no one you can pick.
+          You&apos;ll lose those lives when the week settles. You can still play the Score Predictor.
         </p>
       )}
 
@@ -106,7 +121,7 @@ export default function LmsPickForm({
 
       {error && <p className="text-danger">{error}</p>}
 
-      {readOnly || leagueGroups.length === 0 ? (
+      {readOnly || nothingPickable ? (
         <Link href="/predictor" className="btn btn-primary">
           Next
         </Link>
