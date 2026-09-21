@@ -15,6 +15,10 @@ export async function POST(request: NextRequest) {
   const gameWeek = await getCurrentGameWeek();
   if (!gameWeek) return NextResponse.json({ error: "No game week open for picks" }, { status: 400 });
 
+  if (gameWeek.lmsSkipped) {
+    return NextResponse.json({ error: "Last Man Standing is skipped this week" }, { status: 403 });
+  }
+
   if (new Date() > gameWeek.pickDeadline) {
     return NextResponse.json({ error: "Pick deadline has passed" }, { status: 403 });
   }

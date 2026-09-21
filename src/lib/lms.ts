@@ -7,6 +7,27 @@ import { prisma } from "@/lib/db";
 const POINTS_PER_WEEK = 4;
 const PAYOUT_TIER_PERCENTAGES = [60, 25, 15];
 
+// See section 2 — LMS is skipped for a week when this many (or more) of the
+// leagues have no fixtures at all. The Score Predictor still runs.
+const LMS_SKIP_IDLE_LEAGUES = 2;
+
+export function shouldSkipLms(leaguesPlaying: number, totalLeagues: number): boolean {
+  return totalLeagues - leaguesPlaying >= LMS_SKIP_IDLE_LEAGUES;
+}
+
+// Works out from a game week's stored fixtures whether LMS is skipped, and
+// records it. Called after every pull, so a retried pull that fills in a
+// league that was missing corrects the flag.
+export async function refreshLmsSkipFlag(gameWeekId: number): Promise<boolean> {
+  const [leaguesWithFixtures, totalLeagues] = await Promise.all([
+    prisma.fixture.findMany({ where: { gameWeekId }, distinct: ["leagueId"], select: { leagueId: true } }),
+    prisma.league.count(),
+  ]);
+  const lmsSkipped = shouldSkipLms(leaguesWithFixtures.length, totalLeagues);
+  await prisma.gameWeek.update({ where: { id: gameWeekId }, data: { lmsSkipped } });
+  return lmsSkipped;
+}
+
 function isPickCorrect(
   teamPicked: string,
   fixture: { result: string; homeTeam: string; awayTeam: string }
@@ -88,6 +109,15 @@ export async function settleLmsGameWeek(gameWeekId: number) {
     },
   });
 
+  // LMS skipped this week (section 2): nobody picked, so nobody is scored,
+  // loses a life, or gets wiped out by the thin-week exception. The week
+  // still counts as passed (it adds to the pot) and the Predictor scores
+  // separately.
+  if (gameWeek.lmsSkipped) {
+    await prisma.gameWeek.update({ where: { id: gameWeek.id }, data: { status: "settled" } });
+    return;
+  }
+
   const leagueIdsThisWeek = new Set(gameWeek.fixtures.map((f) => f.leagueId));
 
   const pickByPlayerAndLeague = new Map<string, (typeof gameWeek.lmsPicks)[number]>();
@@ -120,7 +150,8 @@ export async function settleLmsGameWeek(gameWeekId: number) {
 
     // Thin-week wipeout (section 2): every league they're still alive in has
     // no fixtures this week, so there's no possible pick to make — eliminate
-    // outright rather than letting them coast with no penalty.
+    // outright rather than letting them coast with no penalty. Only reachable
+    // now when at most one league is idle (two or more skips the week above).
     const hasAnyPlayableLeague = aliveLeagues.some((life) => leagueIdsThisWeek.has(life.leagueId));
     if (aliveLeagues.length > 0 && !hasAnyPlayableLeague) {
       await prisma.playerLeagueLife.updateMany({

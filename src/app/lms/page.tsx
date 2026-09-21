@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentGameWeek, getCurrentPlayer } from "@/lib/session";
 import LmsPickForm from "./LmsPickForm";
+import LmsSkippedNotice from "./LmsSkippedNotice";
 
 // Screen 3: Last Man Standing pick — one pick per league with fixtures this week.
 // See last-man-standing-plan.md section 3.
@@ -30,6 +31,8 @@ export default async function LmsPickPage() {
     where: { runId_playerId: { runId: gameWeek.runId, playerId: player.id } },
   });
   if (!runEntry || runEntry.eliminated) redirect("/predictor");
+
+  if (gameWeek.lmsSkipped) return <LmsSkippedNotice weekNumber={gameWeek.weekNumber} />;
 
   const leagueLives = await prisma.playerLeagueLife.findMany({
     where: { runId: gameWeek.runId, playerId: player.id },

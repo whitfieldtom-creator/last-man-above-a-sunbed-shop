@@ -27,6 +27,7 @@ export async function tickerContentFor(
     orderBy: { weekNumber: "desc" },
   });
   if (!settledWeek) return `WEEK ${gameWeek.weekNumber} UNDERWAY`;
+  if (settledWeek.lmsSkipped) return "LMS WAS SKIPPED LAST WEEK  ***  NOBODY LOST A LIFE";
 
   const [eliminated, lostLives] = await Promise.all([
     prisma.runEntry.findMany({

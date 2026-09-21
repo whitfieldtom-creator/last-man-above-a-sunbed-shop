@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { pullFixturesForGameWeek, refreshFixtureResults, selectPredictorFixtures } from "@/lib/fixtures";
-import { settleLmsGameWeek } from "@/lib/lms";
+import { refreshLmsSkipFlag, settleLmsGameWeek } from "@/lib/lms";
 import { settlePredictorGameWeek } from "@/lib/predictor";
 
 // A Fri-Mon window is 4 days, pulled every Tuesday (7-day cadence) — by the
@@ -107,6 +107,10 @@ export async function runWeeklySettleAndPull(referenceDate = new Date()) {
   const { windowStart, windowEnd } = nextFridayThroughMonday(referenceDate);
   const gameWeek = await getOrCreateGameWeek(runForPull.id, windowStart, windowEnd);
   const fixtureCount = await pullFixturesForGameWeek(gameWeek.id);
+
+  // Two or more idle leagues => LMS is skipped this week, Predictor still on
+  // (section 2). Recomputed on every run so a retried pull corrects it.
+  await refreshLmsSkipFlag(gameWeek.id);
 
   if (fixtureCount === 0) {
     // Zero leagues playing this window (e.g. an international break) —
