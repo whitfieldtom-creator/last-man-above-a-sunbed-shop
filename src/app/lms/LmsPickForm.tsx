@@ -56,7 +56,13 @@ export default function LmsPickForm({
   return (
     <div className="stack">
       {readOnly && <p className="eyebrow">Picks locked — here&apos;s what you submitted</p>}
-      {leagueGroups.length === 0 && <p className="text-muted">No fixtures this week.</p>}
+      {leagueGroups.length === 0 && (
+        <p className="text-muted">
+          None of the leagues you&apos;re still alive in have games this week, so there&apos;s nothing to pick. Under the
+          thin-week rule that means you&apos;ll be knocked out when the week settles — but you can still play the Score
+          Predictor.
+        </p>
+      )}
 
       {leagueGroups.map((group) => {
         const selected = selections[group.leagueId];
@@ -101,7 +107,7 @@ export default function LmsPickForm({
 
       {error && <p className="text-danger">{error}</p>}
 
-      {readOnly ? (
+      {readOnly || leagueGroups.length === 0 ? (
         <Link href="/predictor" className="btn btn-primary">
           Next
         </Link>
