@@ -58,9 +58,8 @@ export default function LmsPickForm({
       {readOnly && <p className="eyebrow">Picks locked — here&apos;s what you submitted</p>}
       {leagueGroups.length === 0 && (
         <p className="text-muted">
-          None of the leagues you&apos;re still alive in have games this week, so there&apos;s nothing to pick. Under the
-          thin-week rule that means you&apos;ll be knocked out when the week settles — but you can still play the Score
-          Predictor.
+          None of the leagues you&apos;re still alive in have games this week, so there&apos;s nothing for you to pick.
+          You won&apos;t lose a life — you can still play the Score Predictor.
         </p>
       )}
 

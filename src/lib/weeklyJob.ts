@@ -93,8 +93,8 @@ export async function runWeeklySettleAndPull(referenceDate = new Date()) {
     // failure to skip — under the per-league rules it can legitimately
     // happen (e.g. every surviving player's only remaining life is in a
     // league that isn't playing this week). settleLmsGameWeek handles that
-    // correctly on its own (per-league misses, thin-week no-penalty, and
-    // the thin-week wipeout exception), so it always runs.
+    // correctly on its own (per-league misses, and no penalty for a league
+    // with no fixtures), so it always runs.
     await settleLmsGameWeek(week.id);
     settledWeekIds.push(week.id);
 

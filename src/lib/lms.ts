@@ -109,10 +109,9 @@ export async function settleLmsGameWeek(gameWeekId: number) {
     },
   });
 
-  // LMS skipped this week (section 2): nobody picked, so nobody is scored,
-  // loses a life, or gets wiped out by the thin-week exception. The week
-  // still counts as passed (it adds to the pot) and the Predictor scores
-  // separately.
+  // LMS skipped this week (section 2): nobody picked, so nobody is scored
+  // or loses a life. The week still counts as passed (it adds to the pot)
+  // and the Predictor scores separately.
   if (gameWeek.lmsSkipped) {
     await prisma.gameWeek.update({ where: { id: gameWeek.id }, data: { status: "settled" } });
     return;
@@ -148,26 +147,8 @@ export async function settleLmsGameWeek(gameWeekId: number) {
   for (const entry of activeEntries) {
     const aliveLeagues = aliveLeaguesByPlayer.get(entry.playerId) ?? [];
 
-    // Thin-week wipeout (section 2): every league they're still alive in has
-    // no fixtures this week, so there's no possible pick to make — eliminate
-    // outright rather than letting them coast with no penalty. Only reachable
-    // now when at most one league is idle (two or more skips the week above).
-    const hasAnyPlayableLeague = aliveLeagues.some((life) => leagueIdsThisWeek.has(life.leagueId));
-    if (aliveLeagues.length > 0 && !hasAnyPlayableLeague) {
-      await prisma.playerLeagueLife.updateMany({
-        where: { runId: gameWeek.runId, playerId: entry.playerId, alive: true },
-        data: { alive: false, lostAtWeekId: gameWeek.id },
-      });
-      await prisma.runEntry.update({
-        where: { id: entry.id },
-        data: { eliminated: true, eliminatedAtWeekId: gameWeek.id },
-      });
-      eliminatedThisWeek.push(entry.playerId);
-      continue;
-    }
-
     for (const life of aliveLeagues) {
-      if (!leagueIdsThisWeek.has(life.leagueId)) continue; // thin week for this one league — no pick expected, no penalty
+      if (!leagueIdsThisWeek.has(life.leagueId)) continue; // this league has no fixtures this week — no pick expected, no penalty (even if it's all they have left)
 
       const pick = pickByPlayerAndLeague.get(`${entry.playerId}:${life.leagueId}`);
       const survived = pick ? isPickCorrect(pick.teamPicked, pick.fixture) : false;
