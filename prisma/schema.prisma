@@ -67,8 +67,8 @@ model GameWeek {
   // see section 6a. Guards against a double-send from the two DST-covering
   // cron triggers both landing in the match window in the same run.
   reportSentAt DateTime?
-  // True when too many leagues have no fixtures this week (see section 2):
-  // no LMS picks, nobody loses a life, but the Score Predictor still runs.
+  // True when a league that anyone still has a life in has no fixtures this
+  // week (see section 2): no LMS picks, nobody loses a life, but the Score Predictor still runs.
   // Deliberately separate from `status` — a "skipped" status hides the
   // whole week (Predictor included), which isn't wanted here.
   lmsSkipped Boolean @default(false)

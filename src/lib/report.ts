@@ -68,7 +68,7 @@ export async function buildFridayReportEmail(gameWeekId: number) {
   const html = [
     `<h2>Week ${gameWeek.weekNumber} picks — deadline just passed</h2>`,
     "<h3>Last Man Standing</h3>",
-    gameWeek.lmsSkipped ? "<p>Skipped this week — too many leagues have no games. Nobody loses a life.</p>" : lmsTable,
+    gameWeek.lmsSkipped ? "<p>Skipped this week — a league that people still have lives in has no games. Nobody loses a life.</p>" : lmsTable,
     "<h3>Score Predictor</h3>",
     predictorTable,
   ].join("\n");

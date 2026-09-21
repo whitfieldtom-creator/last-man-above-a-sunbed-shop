@@ -32,8 +32,8 @@ Why this works cleanly now: the window is only 4 days (Fri–Mon), settled the v
   - LMS: if a player's pick in a given league has no result, they lose their life **in that league only** — same as a wrong pick, postponements aren't forgiven. Their lives in other leagues are unaffected.
   - Predictor: that fixture scores 0 points; doesn't affect their other 4 picks
 - **Thin weeks (international breaks, cup weeks) — the two games are handled differently**:
-  - **LMS is skipped for the week if two or more of the four leagues have no fixtures** (an international break, cup weekend, etc.). On a skipped week nobody picks, nobody is scored, nobody loses a life, and everyone's leagues stay exactly as they are. The week still counts as having passed (it adds to the points pot, section 6a) and the **Score Predictor still runs as normal** off whatever fixtures there are. This is stored as `game_weeks.lms_skipped`, worked out when the Tuesday job pulls the week (and re-checked on every re-run, so a retried pull that fills in a missing league corrects it). It is deliberately separate from `status = skipped`, which hides the whole week including the Predictor and is only used when *zero* leagues have any fixtures.
-  - **LMS, when it does run** (at most one league idle): a player only picks in leagues where they still have a life AND that league has fixtures that week. If a league they still have a life in has no fixtures that week, they simply don't pick in it — no penalty, no life lost. That holds even if it's the *only* league they have left: they have nothing to pick that week, keep their life, and carry on the next week. (An earlier draft eliminated such a player outright; that rule was removed.)
+  - **LMS only runs if every league that anyone still has a life in has fixtures that week.** If even one such league has no games (an international break, cup weekend, etc.), LMS is skipped for the whole week: nobody picks, nobody is scored, nobody loses a life, and everyone's leagues stay exactly as they are. A league that *nobody* is alive in any more doesn't count either way — so as leagues get knocked out over a run, fewer leagues need to be playing for LMS to run. The week still counts as having passed (it adds to the points pot, section 6a) and the **Score Predictor still runs as normal** off whatever fixtures there are. This is stored as `game_weeks.lms_skipped`, worked out when the Tuesday job pulls the week — after the previous week has settled, so it uses up-to-date lives — and re-checked on every re-run, so a retried pull that fills in a missing league corrects it. It is deliberately separate from `status = skipped`, which hides the whole week including the Predictor and is only used when *zero* leagues have any fixtures.
+  - **When LMS does run**, every league someone is alive in has fixtures, so a player who still has a life in a league picks in it. (There is no longer any rule that eliminates a player for having nothing to pick — earlier drafts had one, and it was removed.)
   - **Predictor**: skip the week only if there are fewer than 5 fixtures in total across all four leagues combined (not enough to fill the 5 random picks).
 
 ## 3. App flow
@@ -89,7 +89,7 @@ player_league_lives                               -- one row per player per leag
 game_weeks
   id, run_id, week_number, window_start (Fri), window_end (Mon),
   pick_deadline (Fri 12:00 UK), status (open | locked | settled | skipped),
-  lms_skipped (bool, default false)                 -- two or more leagues idle: no LMS this week, Predictor still on (section 2)
+  lms_skipped (bool, default false)                 -- a league someone is still alive in has no games: no LMS this week, Predictor still on (section 2)
   report_sent_at (nullable)                         -- set once the Friday deadline report email goes out (section 6b)
 
 fixtures

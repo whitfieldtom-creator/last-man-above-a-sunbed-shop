@@ -108,8 +108,9 @@ export async function runWeeklySettleAndPull(referenceDate = new Date()) {
   const gameWeek = await getOrCreateGameWeek(runForPull.id, windowStart, windowEnd);
   const fixtureCount = await pullFixturesForGameWeek(gameWeek.id);
 
-  // Two or more idle leagues => LMS is skipped this week, Predictor still on
-  // (section 2). Recomputed on every run so a retried pull corrects it.
+  // LMS is skipped this week if a league that anyone still has a life in has
+  // no fixtures; Predictor still on (section 2). Recomputed on every run so a
+  // retried pull corrects it.
   await refreshLmsSkipFlag(gameWeek.id);
 
   if (fixtureCount === 0) {

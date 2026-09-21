@@ -7,23 +7,29 @@ import { prisma } from "@/lib/db";
 const POINTS_PER_WEEK = 4;
 const PAYOUT_TIER_PERCENTAGES = [60, 25, 15];
 
-// See section 2 — LMS is skipped for a week when this many (or more) of the
-// leagues have no fixtures at all. The Score Predictor still runs.
-const LMS_SKIP_IDLE_LEAGUES = 2;
-
-export function shouldSkipLms(leaguesPlaying: number, totalLeagues: number): boolean {
-  return totalLeagues - leaguesPlaying >= LMS_SKIP_IDLE_LEAGUES;
+// See section 2 — LMS only runs for a week if every league that anyone still
+// has a life in has fixtures that week. If even one such league has none, the
+// whole week's LMS is skipped (the Score Predictor still runs). A league
+// nobody is alive in any more doesn't count either way.
+export function shouldSkipLms(leagueIdsWithFixtures: number[], leagueIdsWithLivesLeft: number[]): boolean {
+  const playing = new Set(leagueIdsWithFixtures);
+  return leagueIdsWithLivesLeft.some((leagueId) => !playing.has(leagueId));
 }
 
-// Works out from a game week's stored fixtures whether LMS is skipped, and
-// records it. Called after every pull, so a retried pull that fills in a
-// league that was missing corrects the flag.
+// Works out from a game week's stored fixtures and the run's current lives
+// whether LMS is skipped, and records it. Called after every pull (which
+// happens after the previous week has settled, so lives are up to date), so
+// a retried pull that fills in a missing league corrects the flag.
 export async function refreshLmsSkipFlag(gameWeekId: number): Promise<boolean> {
-  const [leaguesWithFixtures, totalLeagues] = await Promise.all([
+  const week = await prisma.gameWeek.findUniqueOrThrow({ where: { id: gameWeekId }, select: { runId: true } });
+  const [leaguesWithFixtures, leaguesWithLivesLeft] = await Promise.all([
     prisma.fixture.findMany({ where: { gameWeekId }, distinct: ["leagueId"], select: { leagueId: true } }),
-    prisma.league.count(),
+    prisma.playerLeagueLife.findMany({ where: { runId: week.runId, alive: true }, distinct: ["leagueId"], select: { leagueId: true } }),
   ]);
-  const lmsSkipped = shouldSkipLms(leaguesWithFixtures.length, totalLeagues);
+  const lmsSkipped = shouldSkipLms(
+    leaguesWithFixtures.map((f) => f.leagueId),
+    leaguesWithLivesLeft.map((l) => l.leagueId)
+  );
   await prisma.gameWeek.update({ where: { id: gameWeekId }, data: { lmsSkipped } });
   return lmsSkipped;
 }
