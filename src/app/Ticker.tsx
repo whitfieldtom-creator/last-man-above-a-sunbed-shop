@@ -1,40 +1,32 @@
-import { prisma } from "@/lib/db";
+import { getLastFinishedRun } from "@/lib/runs";
+import { getCurrentGameWeek } from "@/lib/session";
 
-// The signature vidiprinter strip — see design-spec.md. Fed by real
-// eliminations and run winners, not placeholder text.
+// The signature vidiprinter strip — see design-spec.md. During the first
+// week of a run it announces the previous run's winner(s); after that it
+// just shows the current week. Deliberately says nothing about eliminations.
 export default async function Ticker() {
-  const [eliminations, finishedRuns] = await Promise.all([
-    prisma.runEntry.findMany({
-      where: { eliminated: true },
-      include: { player: true },
-      orderBy: { eliminatedAtWeekId: "desc" },
-      take: 10,
-    }),
-    prisma.run.findMany({
-      where: { endedAt: { not: null } },
-      include: { winners: true },
-      orderBy: { runNumber: "desc" },
-      take: 5,
-    }),
-  ]);
+  const [gameWeek, lastRun] = await Promise.all([getCurrentGameWeek(), getLastFinishedRun()]);
 
-  const items: string[] = [];
-
-  for (const run of finishedRuns) {
-    const names = run.winners.map((w) => w.name.toUpperCase()).join(" & ");
-    items.push(`${names} WIN${run.winners.length === 1 ? "S" : ""} RUN ${run.runNumber}!`);
-  }
-  for (const entry of eliminations) {
-    items.push(`${entry.player.name.toUpperCase()} ELIMINATED`);
+  let content: string;
+  if (gameWeek?.weekNumber === 1 && lastRun && lastRun.winners.length > 0) {
+    const names = lastRun.winners.map((w) => w.name.toUpperCase()).join(" & ");
+    content = `${names} WIN${lastRun.winners.length === 1 ? "S" : ""} RUN ${lastRun.runNumber}!`;
+  } else {
+    content = gameWeek ? `WEEK ${gameWeek.weekNumber} UNDERWAY` : "SEASON UNDERWAY";
   }
 
-  const content = items.length > 0 ? items.join("  ***  ") : "SEASON UNDERWAY  ***  NO ELIMINATIONS YET";
+  // The marquee loops by scrolling two identical copies, which only looks
+  // seamless if each copy is wider than the screen — a short message
+  // would leave a gap, so repeat it to fill the strip.
+  const separator = "  ***  ";
+  const repeats = Math.max(1, Math.ceil(260 / (content.length + separator.length)));
+  const track = Array(repeats).fill(content).join(separator);
 
   return (
     <div className="ticker">
       <div className="ticker-track">
-        <span>{content}</span>
-        <span aria-hidden="true">{content}</span>
+        <span>{track}</span>
+        <span aria-hidden="true">{track}</span>
       </div>
     </div>
   );

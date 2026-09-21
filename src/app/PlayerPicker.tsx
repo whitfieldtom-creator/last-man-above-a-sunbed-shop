@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function PlayerPicker({ players }: { players: { id: number; name: string }[] }) {
+export default function PlayerPicker({
+  players,
+  winnerIds,
+}: {
+  players: { id: number; name: string }[];
+  winnerIds: number[];
+}) {
   const router = useRouter();
   const [selected, setSelected] = useState<{ id: number; name: string } | null>(null);
   const [passcode, setPasscode] = useState("");
@@ -36,6 +42,7 @@ export default function PlayerPicker({ players }: { players: { id: number; name:
         {players.map((player) => (
           <button key={player.id} className="btn player-btn" onClick={() => setSelected(player)}>
             {player.name}
+            {winnerIds.includes(player.id) && " 👑"}
           </button>
         ))}
       </div>
