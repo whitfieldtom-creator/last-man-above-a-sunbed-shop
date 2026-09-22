@@ -10,10 +10,21 @@ export default function LmsSkippedNotice({ weekNumber }: { weekNumber: number })
       <h2>Last Man Standing</h2>
       <div className="panel">
         <p>
-          Last Man Standing is skipped this week — a league that people still have lives in has no games. Nobody
-          picks and nobody loses a life; everyone&apos;s leagues stay exactly as they are.
+          Have a week off from LMS — enjoy some time with family, or visit{" "}
+          <a
+            href="https://maps.app.goo.gl/WuzMt2puHzwkyvK29"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--accent-gold)", textDecoration: "underline" }}
+          >
+            a local attraction
+          </a>
+          .
         </p>
-        <p className="text-muted">The Score Predictor is still on.</p>
+        <p className="text-muted">
+          A league that people still have lives in has no games this week, so nobody picks and nobody loses a life —
+          everyone&apos;s leagues stay exactly as they are. The Score Predictor is still on.
+        </p>
       </div>
       <Link href="/predictor" className="btn btn-primary">
         Next
