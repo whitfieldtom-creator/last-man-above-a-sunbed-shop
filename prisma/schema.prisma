@@ -23,6 +23,18 @@ model Player {
   lmsPicks          LmsPick[]
   predictorPicks    PredictorPick[]
   playerLeagueLives PlayerLeagueLife[]
+  winToStayIns      WinToStayIn[]
+}
+
+// A single manually-managed "title belt" shown on the leaderboard — not tied
+// to any in-app rule. Always exactly one row (id fixed at 1); whoever's
+// running the pool tells Claude Code to update the holder when it changes.
+model WinToStayIn {
+  id             Int      @id @default(1)
+  holderPlayerId Int
+  updatedAt      DateTime @updatedAt
+
+  holder Player @relation(fields: [holderPlayerId], references: [id])
 }
 
 model League {

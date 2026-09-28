@@ -63,6 +63,10 @@ export default async function ResultsPage() {
     .sort((a, b) => b.points - a.points);
   const formatPoints = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
+  // A manually-managed title belt, unrelated to any in-app rule — see
+  // last-man-standing-plan.md section 6c for how the holder gets updated.
+  const winToStayIn = await prisma.winToStayIn.findUnique({ where: { id: 1 }, include: { holder: true } });
+
   return (
     <main>
       <p className="eyebrow">Screen 5</p>
@@ -130,6 +134,19 @@ export default async function ResultsPage() {
           </>
         )}
       </section>
+
+      {winToStayIn && (
+        <section>
+          <p className="eyebrow" style={{ marginTop: "1.5rem" }}>
+            Win To Stay In
+          </p>
+          <div className="panel">
+            <p style={{ margin: 0 }}>
+              <span className="text-faint">Current holder:</span> {winToStayIn.holder.name}
+            </p>
+          </div>
+        </section>
+      )}
 
       <section>
         <p className="eyebrow" style={{ marginTop: "1.5rem" }}>
