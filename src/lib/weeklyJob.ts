@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { pullFixturesForGameWeek, refreshFixtureResults, selectPredictorFixtures } from "@/lib/fixtures";
 import { refreshLmsSkipFlag, settleLmsGameWeek } from "@/lib/lms";
 import { settlePredictorGameWeek } from "@/lib/predictor";
+import { replacePostponedPredictorFixtures } from "@/lib/predictorFixtures";
 
 // A Fri-Mon window is 4 days, pulled every Tuesday (7-day cadence) — by the
 // time next Tuesday's job runs, this window's Monday has always already
@@ -119,6 +120,12 @@ export async function runWeeklySettleAndPull(referenceDate = new Date()) {
     await prisma.gameWeek.update({ where: { id: gameWeek.id }, data: { status: "skipped" } });
   } else {
     await selectPredictorFixtures(gameWeek.id);
+    // Catches a Predictor fixture that's already shown as postponed by pull
+    // time (e.g. announced ahead of the week starting). A postponement that
+    // happens later in the week, after this runs, isn't caught until the
+    // following Tuesday — deliberately not a mid-week job, see
+    // last-man-standing-plan.md section 7.
+    await replacePostponedPredictorFixtures(gameWeek.id);
   }
 
   return {
