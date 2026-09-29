@@ -10,7 +10,13 @@ const LEAGUE_SPORTSDB_IDS: Record<string, string> = {
 };
 
 const FINISHED_STATUSES = new Set(["FT", "AET", "PEN"]);
-const POSTPONED_STATUSES = new Set(["PPD", "CANC", "ABD", "Postponed", "Cancelled"]);
+// TheSportsDB actually uses "PST" for postponed (confirmed live — the "PPD"
+// originally listed here was never actually observed and doesn't match any
+// documented status). Keeping the others as a defensive superset in case a
+// different feed/status ever appears; "SUSP" and "INT" added for the same
+// reason — a match called off or interrupted mid-game is the same "no
+// result" case as a postponement for our purposes.
+const POSTPONED_STATUSES = new Set(["PST", "PPD", "CANC", "ABD", "SUSP", "INT", "Postponed", "Cancelled"]);
 
 // English season string TheSportsDB expects, e.g. "2026-2027" — the season
 // that starts in the August of `date`'s year (or the previous August, if
