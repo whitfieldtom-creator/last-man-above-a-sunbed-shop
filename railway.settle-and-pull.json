@@ -1,0 +1,8 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "deploy": {
+    "startCommand": "node scripts/trigger-cron.mjs settle-and-pull",
+    "cronSchedule": "0 6,12 * * 2",
+    "restartPolicyType": "NEVER"
+  }
+}

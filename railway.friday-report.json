@@ -1,0 +1,8 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "deploy": {
+    "startCommand": "node scripts/trigger-cron.mjs friday-report",
+    "cronSchedule": "5 11,12,14,17 * * 5",
+    "restartPolicyType": "NEVER"
+  }
+}
