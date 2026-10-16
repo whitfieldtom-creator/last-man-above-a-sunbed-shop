@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { getLastFinishedRun } from "@/lib/runs";
 import PlayerPicker from "./PlayerPicker";
@@ -16,7 +15,6 @@ export default async function ChoosePlayerPage() {
 
   return (
     <main>
-      <Image src="/home-photo.jpg" alt="" width={1500} height={2000} sizes="320px" className="home-photo" priority />
       <p className="eyebrow">Screen 1</p>
       <h2>Choose your player</h2>
       <PlayerPicker players={players} winnerIds={lastRun?.winners.map((w) => w.id) ?? []} />

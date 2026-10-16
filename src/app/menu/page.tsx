@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentGameWeek, getCurrentPlayer } from "@/lib/session";
@@ -17,6 +18,7 @@ export default async function MenuPage() {
 
   return (
     <main>
+      <Image src="/home-photo.jpg" alt="" width={1500} height={2000} sizes="320px" className="home-photo" priority />
       <p className="eyebrow">Screen 2</p>
       <h2>{player.name}</h2>
       {!gameWeek && <p className="text-muted">No game week open right now — check back after the next pull.</p>}
