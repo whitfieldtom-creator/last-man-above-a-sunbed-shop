@@ -38,7 +38,13 @@ async function sportsDbGet(path: string, params: Record<string, string>): Promis
     if (res.ok) return res.json();
 
     if (res.status === 429 && attempt < maxAttempts) {
-      await sleep(2 ** attempt * 1000); // 2s, 4s, 8s, 16s, 32s
+      // The limit is per-minute and the response says how long to wait
+      // (Retry-After, seconds) — honour it, with the exponential backoff
+      // (2s, 4s, 8s, 16s, 32s) as a floor. Without this the backoff could
+      // finish inside the same rate-limit window and every attempt failed.
+      const retryAfterMs = Number(res.headers.get("retry-after")) * 1000;
+      const backoffMs = 2 ** attempt * 1000;
+      await sleep(Math.min(Math.max(backoffMs, Number.isFinite(retryAfterMs) ? retryAfterMs + 1000 : 0), 65_000));
       continue;
     }
     throw new Error(`TheSportsDB request failed: ${res.status} ${res.statusText}`);
