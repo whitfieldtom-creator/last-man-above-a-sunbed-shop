@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getNextRound, getRoundFixtures, lookupEvent, type SportsDbEvent } from "@/lib/sportsdb";
+import { isBonusTeamFixture } from "@/lib/bonus";
 
 // See last-man-standing-plan.md section 11.
 const LEAGUE_SPORTSDB_IDS: Record<string, string> = {
@@ -143,6 +144,11 @@ export async function refreshFixtureResults(gameWeekId: number): Promise<void> {
 
 // Randomly picks 5 of the game week's fixtures for the Score Predictor.
 // Per section 2, skip if there aren't enough fixtures to fill 5 picks.
+//
+// One of the five is the weekly BIG MONEY BONUS GAME (worth double points):
+// a random fixture involving one of BONUS_TEAMS (src/lib/bonus.ts). If none
+// of those teams has a game this week, there simply isn't a bonus game and
+// all five are random as before.
 export async function selectPredictorFixtures(gameWeekId: number, count = 5) {
   const existing = await prisma.predictorFixture.findMany({ where: { gameWeekId } });
   if (existing.length > 0) return existing;
@@ -150,10 +156,17 @@ export async function selectPredictorFixtures(gameWeekId: number, count = 5) {
   const fixtures = await prisma.fixture.findMany({ where: { gameWeekId } });
   if (fixtures.length < count) return [];
 
-  const chosen = [...fixtures].sort(() => Math.random() - 0.5).slice(0, count);
+  function shuffle<T>(items: T[]): T[] {
+    return [...items].sort(() => Math.random() - 0.5);
+  }
+
+  // A postponed game can't be the bonus (it would just be replaced).
+  const bonusFixture = shuffle(fixtures.filter((f) => f.result !== "postponed" && isBonusTeamFixture(f)))[0] ?? null;
+  const rest = shuffle(fixtures.filter((f) => f.id !== bonusFixture?.id)).slice(0, bonusFixture ? count - 1 : count);
+  const chosen = bonusFixture ? [bonusFixture, ...rest] : rest;
 
   await prisma.predictorFixture.createMany({
-    data: chosen.map((fixture) => ({ gameWeekId, fixtureId: fixture.id })),
+    data: chosen.map((fixture) => ({ gameWeekId, fixtureId: fixture.id, isBonus: fixture.id === bonusFixture?.id })),
   });
 
   return prisma.predictorFixture.findMany({ where: { gameWeekId } });

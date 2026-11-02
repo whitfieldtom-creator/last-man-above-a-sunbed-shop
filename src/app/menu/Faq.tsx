@@ -17,7 +17,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
         <p>
           <strong>Score Predictor:</strong> Enter your predictions for five randomly generated games each week. 3
           points will be awarded for an exact score, 1 for a correct result. All players are set the same fixtures
-          each week. Follow the live &lsquo;TomTech&rsquo; scoreboard as we go to track your progress!
+          each week. One of the five is the BIG MONEY BONUS GAME, which is worth double points. Follow the live &lsquo;TomTech&rsquo; scoreboard as we go to track your progress!
         </p>
       </>
     ),

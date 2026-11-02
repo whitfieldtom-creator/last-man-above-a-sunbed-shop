@@ -49,6 +49,7 @@ export default async function PredictorPickPage() {
           predictorFixtureId: pf.id,
           homeTeam: pf.fixture.homeTeam,
           awayTeam: pf.fixture.awayTeam,
+          isBonus: pf.isBonus,
         }))}
         existingPicks={existingPicks}
         deadlineIso={gameWeek.pickDeadline.toISOString()}

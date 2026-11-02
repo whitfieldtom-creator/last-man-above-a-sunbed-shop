@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import DerbyNotice from "../DerbyNotice";
+import { DERBY } from "@/lib/bonus";
 
 type Fixture = { id: number; homeTeam: string; awayTeam: string; kickoffTime: string };
 type LeagueGroup = { leagueId: number; leagueName: string; fixtures: Fixture[] };
@@ -24,6 +26,7 @@ export default function LmsPickForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showStokeWarning, setShowStokeWarning] = useState(false);
+  const [showDerbyNotice, setShowDerbyNotice] = useState(false);
 
   const readOnly = new Date() > new Date(deadlineIso);
 
@@ -40,6 +43,7 @@ export default function LmsPickForm({
     if ((usedTeamsByLeague[leagueId] ?? []).includes(team) || readOnly) return;
     setSelections((prev) => ({ ...prev, [leagueId]: { fixtureId, teamPicked: team } }));
     if (team === "Stoke City") setShowStokeWarning(true);
+    if (team === DERBY) setShowDerbyNotice(true);
   }
 
   async function submit() {
@@ -130,6 +134,8 @@ export default function LmsPickForm({
           {submitting ? "Saving…" : "Next"}
         </button>
       )}
+
+      {showDerbyNotice && <DerbyNotice onClose={() => setShowDerbyNotice(false)} />}
 
       {showStokeWarning && (
         <div className="modal-overlay" onClick={() => setShowStokeWarning(false)}>

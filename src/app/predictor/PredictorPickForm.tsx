@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import BonusBanner from "../BonusBanner";
+import DerbyNotice from "../DerbyNotice";
+import { predictsDerbyWin } from "@/lib/bonus";
 
-type FixtureRow = { predictorFixtureId: number; homeTeam: string; awayTeam: string };
+type FixtureRow = { predictorFixtureId: number; homeTeam: string; awayTeam: string; isBonus: boolean };
 type Score = { homeScore: number; awayScore: number };
 
 export default function PredictorPickForm({
@@ -27,12 +30,23 @@ export default function PredictorPickForm({
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showDerbyNotice, setShowDerbyNotice] = useState(false);
+  // Fixtures the Derby notice has already fired for, so it doesn't nag on every keystroke.
+  const [derbyShownFor, setDerbyShownFor] = useState<Set<number>>(new Set());
 
   const readOnly = new Date() > new Date(deadlineIso);
 
   function setScore(id: number, side: "home" | "away", value: string) {
     if (readOnly) return;
-    setScores((prev) => ({ ...prev, [id]: { ...prev[id], [side]: value } }));
+    const next = { ...scores[id], [side]: value };
+    setScores((prev) => ({ ...prev, [id]: next }));
+
+    // Easter egg: scoreline has Derby winning.
+    const fixture = fixtures.find((x) => x.predictorFixtureId === id);
+    if (fixture && next.home !== "" && next.away !== "" && !derbyShownFor.has(id) && predictsDerbyWin(fixture, Number(next.home), Number(next.away))) {
+      setDerbyShownFor((prev) => new Set(prev).add(id));
+      setShowDerbyNotice(true);
+    }
   }
 
   async function submit() {
@@ -75,8 +89,8 @@ export default function PredictorPickForm({
       <div className="panel stack">
         {fixtures.map((fixture) => {
           const value = scores[fixture.predictorFixtureId];
-          return (
-            <div key={fixture.predictorFixtureId} className="row">
+          const row = (
+            <div className="row">
               <span style={{ flex: 1, textAlign: "right" }}>{fixture.homeTeam}</span>
               <input
                 type="number"
@@ -98,6 +112,14 @@ export default function PredictorPickForm({
               <span style={{ flex: 1 }}>{fixture.awayTeam}</span>
             </div>
           );
+          return fixture.isBonus ? (
+            <div key={fixture.predictorFixtureId} className="bonus-block">
+              <BonusBanner />
+              {row}
+            </div>
+          ) : (
+            <div key={fixture.predictorFixtureId}>{row}</div>
+          );
         })}
       </div>
 
@@ -112,6 +134,8 @@ export default function PredictorPickForm({
           {submitting ? "Saving…" : "Next"}
         </button>
       )}
+
+      {showDerbyNotice && <DerbyNotice onClose={() => setShowDerbyNotice(false)} />}
     </div>
   );
 }

@@ -1,10 +1,16 @@
 import { prisma } from "@/lib/db";
+import { isBonusTeamFixture } from "@/lib/bonus";
 
 // If a selected Predictor fixture has since become postponed, swap it for a
 // fresh pending fixture from the same game week that isn't already selected.
 // Any picks already made against the postponed fixture are cleared — those
 // players need to pick again for the replacement. Safe to call any time
 // before a week settles; a no-op if nothing's postponed.
+//
+// If the postponed game was the BIG MONEY BONUS GAME, the replacement is
+// another bonus-team fixture where there is one, so the week keeps its bonus;
+// if there isn't, it's replaced by an ordinary fixture and the bonus is
+// dropped for the week.
 export async function replacePostponedPredictorFixtures(gameWeekId: number): Promise<{ replaced: number; picksCleared: number }> {
   const predictorFixtures = await prisma.predictorFixture.findMany({
     where: { gameWeekId },
@@ -22,12 +28,14 @@ export async function replacePostponedPredictorFixtures(gameWeekId: number): Pro
   let picksCleared = 0;
   let replaced = 0;
   for (const pf of postponed) {
-    const replacement = shuffled.pop();
+    let replacement = pf.isBonus ? shuffled.find(isBonusTeamFixture) : undefined;
+    if (replacement) shuffled.splice(shuffled.indexOf(replacement), 1);
+    else replacement = shuffled.pop();
     if (!replacement) break; // no non-postponed, unselected fixture left this week
 
     picksCleared += pf.predictorPicks.length;
     await prisma.predictorPick.deleteMany({ where: { predictorFixtureId: pf.id } });
-    await prisma.predictorFixture.update({ where: { id: pf.id }, data: { fixtureId: replacement.id } });
+    await prisma.predictorFixture.update({ where: { id: pf.id }, data: { fixtureId: replacement.id, isBonus: pf.isBonus && isBonusTeamFixture(replacement) } });
     selectedFixtureIds.add(replacement.id);
     replaced++;
   }

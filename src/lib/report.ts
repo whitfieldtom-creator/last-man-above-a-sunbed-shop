@@ -58,7 +58,12 @@ export async function buildFridayReportEmail(gameWeekId: number) {
   );
 
   const predictorTable = buildTable(
-    ["Player", ...gameWeek.predictorFixtures.map((pf) => `${pf.fixture.homeTeam} v ${pf.fixture.awayTeam}`)],
+    [
+      "Player",
+      ...gameWeek.predictorFixtures.map(
+        (pf) => `${pf.isBonus ? "BIG MONEY BONUS (x2): " : ""}${pf.fixture.homeTeam} v ${pf.fixture.awayTeam}`
+      ),
+    ],
     players.map((player) => [
       escapeHtml(player.name),
       ...gameWeek.predictorFixtures.map((pf) => predictorPickByPlayerAndFixture.get(`${player.id}:${pf.id}`) ?? ""),

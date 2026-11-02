@@ -29,6 +29,13 @@ export default async function MenuPage() {
         <Link href="/results" className="btn">
           View leaderboard
         </Link>
+        {/* Once picks are locked on Friday, until Tuesday's job closes the week
+            and the next one opens (the current game week then moves on). */}
+        {gameWeek && locked && (
+          <Link href="/picks" className="btn">
+            See everyone&apos;s picks
+          </Link>
+        )}
       </div>
       <Faq />
     </main>

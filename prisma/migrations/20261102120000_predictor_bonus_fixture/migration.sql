@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "PredictorFixture" ADD COLUMN     "isBonus" BOOLEAN NOT NULL DEFAULT false;

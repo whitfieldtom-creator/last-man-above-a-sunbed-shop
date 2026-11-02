@@ -170,6 +170,9 @@ model PredictorFixture {
   id         Int @id @default(autoincrement())
   gameWeekId Int
   fixtureId  Int @unique
+  // The weekly "BIG MONEY BONUS GAME" — a fixture involving one of the
+  // BONUS_TEAMS (src/lib/bonus.ts). Worth double points at settlement.
+  isBonus    Boolean @default(false)
 
   gameWeek       GameWeek        @relation(fields: [gameWeekId], references: [id])
   fixture        Fixture         @relation(fields: [fixtureId], references: [id])

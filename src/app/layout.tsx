@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { Teko, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Teko, IBM_Plex_Sans, IBM_Plex_Mono, Bangers } from "next/font/google";
 import "./globals.css";
 import Ticker from "./Ticker";
 
@@ -22,6 +22,13 @@ const plexMono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
+// Only used for the BIG MONEY BONUS GAME banner.
+const bangers = Bangers({
+  variable: "--font-bangers",
+  subsets: ["latin"],
+  weight: "400",
+});
+
 export const metadata: Metadata = {
   title: "Last Man Above A Sunbed Shop",
   description: "Last Man Standing + Score Predictor",
@@ -32,7 +39,7 @@ export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${teko.variable} ${plexSans.variable} ${plexMono.variable}`}>
+    <html lang="en" className={`${teko.variable} ${plexSans.variable} ${plexMono.variable} ${bangers.variable}`}>
       <body>
         <header className="site-header">
           <p className="eyebrow">Last Man Standing · Score Predictor</p>
