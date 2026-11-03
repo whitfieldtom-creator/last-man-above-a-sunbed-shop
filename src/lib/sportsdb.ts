@@ -34,8 +34,25 @@ async function sportsDbGet(path: string, params: Record<string, string>): Promis
 
   const maxAttempts = 6;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const res = await fetch(url);
+    let res: Response;
+    try {
+      res = await fetch(url);
+    } catch (err) {
+      // A dropped connection (e.g. ECONNRESET) is transient too.
+      if (attempt < maxAttempts) {
+        await sleep(2 ** attempt * 1000);
+        continue;
+      }
+      throw err;
+    }
     if (res.ok) return res.json();
+
+    // Their API has had patches of 5xx errors (seen: 503 on a Tuesday run) —
+    // worth waiting out rather than failing the whole weekly job.
+    if (res.status >= 500 && attempt < maxAttempts) {
+      await sleep(2 ** attempt * 1000);
+      continue;
+    }
 
     if (res.status === 429 && attempt < maxAttempts) {
       // The limit is per-minute and the response says how long to wait
