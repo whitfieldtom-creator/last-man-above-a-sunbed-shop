@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { getNextRound, getRoundFixtures, lookupEvent, type SportsDbEvent } from "@/lib/sportsdb";
+import { getEventsOnDay, lookupEvent, type SportsDbEvent } from "@/lib/sportsdb";
 import { isBonusTeamFixture } from "@/lib/bonus";
 
 // See last-man-standing-plan.md section 11.
@@ -45,6 +45,21 @@ function mapEventStatus(event: SportsDbEvent): {
   return { result: "pending", homeScore: null, awayScore: null };
 }
 
+// Gap between pull requests — 2.5s keeps us under the free key's 30/min
+// (a personal key has headroom to spare, so this only costs ~40s a week).
+const PULL_PACING_MS = 2500;
+
+// Every calendar date (YYYY-MM-DD, UTC) from the start of the window to its end.
+function datesInWindow(windowStart: Date, windowEnd: Date): string[] {
+  const dates: string[] = [];
+  const day = new Date(Date.UTC(windowStart.getUTCFullYear(), windowStart.getUTCMonth(), windowStart.getUTCDate()));
+  while (day <= windowEnd) {
+    dates.push(day.toISOString().slice(0, 10));
+    day.setUTCDate(day.getUTCDate() + 1);
+  }
+  return dates;
+}
+
 // Pulls fixtures for every league into `gameWeekId`'s Fri-Mon window, and
 // re-syncs results for fixtures already stored there (same call covers both
 // pulling and settling — see section 11). Returns the number of fixtures
@@ -52,7 +67,7 @@ function mapEventStatus(event: SportsDbEvent): {
 export async function pullFixturesForGameWeek(gameWeekId: number): Promise<number> {
   const gameWeek = await prisma.gameWeek.findUniqueOrThrow({ where: { id: gameWeekId } });
   const leagues = await prisma.league.findMany();
-  const season = seasonForDate(gameWeek.windowStart);
+  const dates = datesInWindow(gameWeek.windowStart, gameWeek.windowEnd);
 
   let count = 0;
 
@@ -71,19 +86,20 @@ export async function pullFixturesForGameWeek(gameWeekId: number): Promise<numbe
       continue;
     }
 
-    // Self-throttle between leagues — see the matching note on
-    // refreshFixtureResults. 2 seconds wasn't enough (League Two, always
-    // last to run, has hit the shared key's rate limit twice at this
-    // pacing); 4 seconds gives more headroom.
-    await new Promise((resolve) => setTimeout(resolve, 4000));
-
-    const nextRound = await getNextRound(sportsDbId);
-    if (nextRound === null) continue;
-
-    const roundEvents = await getRoundFixtures(sportsDbId, nextRound, season);
-    const nextRoundEvents = await getRoundFixtures(sportsDbId, nextRound + 1, season);
-
-    const events = [...roundEvents, ...nextRoundEvents].filter((event) => {
+    // Fetch each day of the window for this league (see getEventsOnDay for
+    // why this isn't round-based any more), spaced out to stay well inside
+    // the free key's 30 requests/minute. An empty sweep is retried once: the
+    // API can return a 200 with no events as a transient blip, which looks
+    // identical to a genuine thin week (e.g. the FA Cup first-round weekend)
+    // and would wrongly skip LMS.
+    let events: SportsDbEvent[] = [];
+    for (let sweep = 1; sweep <= 2 && events.length === 0; sweep++) {
+      for (const date of dates) {
+        await new Promise((resolve) => setTimeout(resolve, PULL_PACING_MS));
+        events.push(...(await getEventsOnDay(sportsDbId, date)));
+      }
+    }
+    events = events.filter((event) => {
       const eventDate = new Date(event.dateEvent);
       return eventDate >= gameWeek.windowStart && eventDate <= gameWeek.windowEnd;
     });

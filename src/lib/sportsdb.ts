@@ -69,27 +69,17 @@ async function sportsDbGet(path: string, params: Record<string, string>): Promis
   throw new Error("unreachable");
 }
 
-// The single next unplayed fixture for a league, used only to read its
-// round number — not reliable as a source of fixture lists (see section 11).
+// All of a league's fixtures on one calendar date (YYYY-MM-DD, UTC).
 //
-// An empty response here is treated by the caller as "this league has no
-// fixtures this week" (a legitimate thin week, see section 2) — but a live
-// run showed the API can also return a 200 with an empty events list as a
-// transient blip for a league that, moments later, has data again. That's
-// indistinguishable from a real thin week unless we double-check, so retry
-// a couple of times on an empty result before accepting it.
-export async function getNextRound(leagueId: string): Promise<number | null> {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const { events } = await sportsDbGet("eventsnextleague.php", { id: leagueId });
-    const round = events?.[0]?.intRound;
-    if (round) return Number(round);
-    if (attempt < 3) await sleep(3000);
-  }
-  return null;
-}
-
-export async function getRoundFixtures(leagueId: string, round: number, season: string): Promise<SportsDbEvent[]> {
-  const { events } = await sportsDbGet("eventsround.php", { id: leagueId, r: String(round), s: season });
+// This replaced the old eventsnextleague + eventsround approach: eventsround
+// isn't served to personal (paid) keys at all (404 "API endpoint not found"),
+// and the "next round" pointer it relied on is unreliable anyway — it gets
+// stuck on a catch-up round of rescheduled games, so for League One/Two the
+// real weekend fixtures were never fetched (week 7, 30 Oct - 2 Nov: 12 + 12
+// games existed, the job found none). Asking for each date directly has
+// neither problem. See last-man-standing-plan.md section 11.
+export async function getEventsOnDay(leagueId: string, date: string): Promise<SportsDbEvent[]> {
+  const { events } = await sportsDbGet("eventsday.php", { d: date, l: leagueId });
   return events ?? [];
 }
 
